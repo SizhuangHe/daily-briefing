@@ -1,0 +1,34 @@
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Database
+sqlalchemy>=2.0.25
+alembic>=1.13.0
+
+# News & RSS
+feedparser>=6.0.11
+httpx>=0.27.0
+beautifulsoup4>=4.12.0
+
+# Stock market
+yfinance>=0.2.36
+
+# Recommendation system
+scikit-learn>=1.4.0
+numpy>=1.26.0
+
+# Gemini API (new SDK)
+google-genai>=1.0.0
+
+# Scheduling
+apscheduler>=3.10.4
+
+# Utilities
+python-dateutil>=2.8.2
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
