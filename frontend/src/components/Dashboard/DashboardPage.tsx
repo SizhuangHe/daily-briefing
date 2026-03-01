@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import CalendarSection from "../Calendar/CalendarSection";
 import StocksSection from "../Stocks/StocksSection";
 import NewsSection from "../News/NewsSection";
 
@@ -16,13 +17,8 @@ export default function DashboardPage() {
       {/* Grid layout for sections */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Calendar & Schedule Summary */}
-        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">
-            Today's Schedule
-          </h3>
-          <p className="text-sm text-slate-400">
-            Calendar integration coming in Phase 4...
-          </p>
+        <div className="lg:col-span-2">
+          <CalendarSection />
         </div>
 
         {/* Stock Market */}
