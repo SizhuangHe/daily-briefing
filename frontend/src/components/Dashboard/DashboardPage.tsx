@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import StocksSection from "../Stocks/StocksSection";
 
 export default function DashboardPage() {
   const today = format(new Date(), "EEEE, MMMM d, yyyy");
@@ -14,7 +15,7 @@ export default function DashboardPage() {
       {/* Grid layout for sections */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Calendar & Schedule Summary */}
-        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
           <h3 className="mb-4 text-lg font-semibold text-slate-900">
             Today's Schedule
           </h3>
@@ -24,13 +25,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Stock Market */}
-        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">
-            Market Overview
-          </h3>
-          <p className="text-sm text-slate-400">
-            Stock data coming in Phase 2...
-          </p>
+        <div className="lg:col-span-2">
+          <StocksSection />
         </div>
 
         {/* News */}
