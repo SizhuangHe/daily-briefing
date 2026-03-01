@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import BriefingView from "../Briefing/BriefingView";
 import CalendarSection from "../Calendar/CalendarSection";
+import InspirationSection from "../Inspiration/InspirationSection";
 import StocksSection from "../Stocks/StocksSection";
 import NewsSection from "../News/NewsSection";
 
@@ -38,13 +39,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Inspiration */}
-        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">
-            Daily Inspiration
-          </h3>
-          <p className="text-sm text-slate-400">
-            Inspiration content coming in Phase 6...
-          </p>
+        <div className="lg:col-span-2">
+          <InspirationSection />
         </div>
       </div>
     </div>
