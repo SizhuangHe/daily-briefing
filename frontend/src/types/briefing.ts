@@ -54,6 +54,16 @@ export interface Inspiration {
   activity?: string;
 }
 
+export interface NewsSummarySection {
+  topic: string;
+  summary: string;
+}
+
+export interface NewsSummary {
+  overview: string;
+  sections: NewsSummarySection[];
+}
+
 export interface Briefing {
   date: string;
   news: Article[];

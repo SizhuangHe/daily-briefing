@@ -1,14 +1,42 @@
-from fastapi import APIRouter, Depends, Query
+import json
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.article import Article, ArticleRating
 from app.schemas.article import (
     ArticleRatingRequest,
     ArticleRatingResponse,
     ArticleResponse,
 )
+from app.services import gemini_service, news_service
 
 router = APIRouter()
+
+
+def _article_to_response(article: Article) -> ArticleResponse:
+    """Convert DB article to response, parsing JSON topics."""
+    topics = []
+    if article.topics:
+        try:
+            topics = json.loads(article.topics)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return ArticleResponse(
+        id=article.id,
+        title=article.title,
+        description=article.description,
+        url=article.url,
+        source_name=article.source_name,
+        image_url=article.image_url,
+        topics=topics,
+        gemini_summary=article.gemini_summary,
+        recommendation_score=article.recommendation_score or 0.0,
+        published_at=article.published_at,
+    )
 
 
 @router.get("", response_model=list[ArticleResponse])
@@ -19,15 +47,43 @@ async def get_news(
     db: Session = Depends(get_db),
 ):
     """Get news articles sorted by recommendation score."""
-    # TODO: Query articles with recommendation sorting
-    return []
+    articles = news_service.get_articles(db, topic=topic, limit=limit, offset=offset)
+    return [_article_to_response(a) for a in articles]
+
+
+@router.get("/summary")
+async def get_news_summary(db: Session = Depends(get_db)):
+    """Get an AI-generated summary of today's news organized by topic."""
+    articles = news_service.get_articles(db, limit=30)
+    if not articles:
+        return {"overview": "No articles available. Click Refresh to fetch news.", "sections": []}
+
+    article_dicts = []
+    for a in articles:
+        topics = []
+        if a.topics:
+            try:
+                topics = json.loads(a.topics)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        article_dicts.append({
+            "title": a.title,
+            "description": a.description or "",
+            "source_name": a.source_name or "",
+            "topics": topics,
+        })
+
+    result = gemini_service.summarize_news_by_topic(article_dicts)
+    return result
 
 
 @router.get("/{article_id}", response_model=ArticleResponse)
 async def get_article(article_id: int, db: Session = Depends(get_db)):
     """Get a single article by ID."""
-    # TODO: Query single article
-    return {"id": article_id, "title": "placeholder", "url": ""}
+    article = db.query(Article).filter_by(id=article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    return _article_to_response(article)
 
 
 @router.post("/{article_id}/rate", response_model=ArticleRatingResponse)
@@ -36,17 +92,59 @@ async def rate_article(
     rating: ArticleRatingRequest,
     db: Session = Depends(get_db),
 ):
-    """Rate an article (thumbs up/down)."""
-    # TODO: Store rating and trigger recommendation update
-    from datetime import datetime
+    """Rate an article (thumbs up: 1, thumbs down: -1)."""
+    article = db.query(Article).filter_by(id=article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    if rating.score not in (-1, 1):
+        raise HTTPException(status_code=400, detail="Score must be -1 or 1")
+
+    existing = db.query(ArticleRating).filter_by(article_id=article_id).first()
+    if existing:
+        existing.score = rating.score
+        existing.rated_at = datetime.utcnow()
+    else:
+        db.add(ArticleRating(
+            article_id=article_id,
+            score=rating.score,
+        ))
+    db.commit()
 
     return ArticleRatingResponse(
-        article_id=article_id, score=rating.score, rated_at=datetime.utcnow()
+        article_id=article_id,
+        score=rating.score,
+        rated_at=datetime.utcnow(),
     )
 
 
 @router.post("/refresh")
 async def refresh_news(db: Session = Depends(get_db)):
-    """Manually trigger news fetch from all sources."""
-    # TODO: Call news_service.fetch_all_sources()
-    return {"status": "refresh triggered"}
+    """Manually trigger news fetch from all sources + Gemini summaries."""
+    new_count = news_service.fetch_all_sources(db)
+
+    # Generate Gemini summaries for articles that don't have one
+    unsummarized = (
+        db.query(Article)
+        .filter(Article.gemini_summary.is_(None))
+        .order_by(Article.published_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    if unsummarized:
+        article_dicts = [
+            {"id": a.id, "title": a.title, "description": a.description}
+            for a in unsummarized
+        ]
+        summaries = gemini_service.summarize_articles(article_dicts)
+        for article in unsummarized:
+            if article.id in summaries:
+                article.gemini_summary = summaries[article.id]
+        db.commit()
+
+    return {
+        "status": "ok",
+        "new_articles": new_count,
+        "summaries_generated": len(summaries) if unsummarized else 0,
+    }

@@ -35,9 +35,9 @@ export default function StocksSection() {
       </div>
 
       {/* Major Indices */}
-      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {indicesLoading ? (
-          <div className="col-span-3 flex justify-center py-4">
+          <div className="col-span-full flex justify-center py-4">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
           </div>
         ) : (

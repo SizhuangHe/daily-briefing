@@ -4,14 +4,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import init_db
+from app.database import SessionLocal, init_db
 from app.routers import briefing, calendar, inspiration, news, preferences, stocks
+from app.services.news_service import seed_default_sources
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: initialize database tables
+    # Startup: initialize database tables and seed data
     init_db()
+    db = SessionLocal()
+    try:
+        seed_default_sources(db)
+    finally:
+        db.close()
     yield
     # Shutdown: cleanup if needed
 

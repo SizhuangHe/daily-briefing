@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 INDICES = [
     {"symbol": "^GSPC", "name": "S&P 500"},
     {"symbol": "^IXIC", "name": "NASDAQ"},
-    {"symbol": "^DJI", "name": "Dow Jones"},
+    {"symbol": "000001.SS", "name": "SSE Composite"},
+    {"symbol": "^KS11", "name": "KOSPI"},
 ]
 
 

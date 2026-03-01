@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
 
     model_config = {
-        "env_file": ".env",
+        "env_file": ("../.env", ".env"),
         "env_file_encoding": "utf-8",
     }
 
