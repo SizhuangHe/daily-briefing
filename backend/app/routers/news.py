@@ -11,7 +11,7 @@ from app.schemas.article import (
     ArticleRatingResponse,
     ArticleResponse,
 )
-from app.services import gemini_service, news_service
+from app.services import gemini_service, news_service, recommendation
 
 router = APIRouter()
 
@@ -111,6 +111,10 @@ async def rate_article(
         ))
     db.commit()
 
+    # Recalculate recommendation scores after rating
+    recommendation.update_topic_weights(db)
+    recommendation.recalculate_scores(db)
+
     return ArticleRatingResponse(
         article_id=article_id,
         score=rating.score,
@@ -132,6 +136,7 @@ async def refresh_news(db: Session = Depends(get_db)):
         .all()
     )
 
+    summaries_count = 0
     if unsummarized:
         article_dicts = [
             {"id": a.id, "title": a.title, "description": a.description}
@@ -142,9 +147,13 @@ async def refresh_news(db: Session = Depends(get_db)):
             if article.id in summaries:
                 article.gemini_summary = summaries[article.id]
         db.commit()
+        summaries_count = len(summaries)
+
+    # Recalculate recommendation scores for all articles
+    recommendation.recalculate_scores(db)
 
     return {
         "status": "ok",
         "new_articles": new_count,
-        "summaries_generated": len(summaries) if unsummarized else 0,
+        "summaries_generated": summaries_count,
     }
