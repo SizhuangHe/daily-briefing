@@ -76,7 +76,8 @@ def recalculate_scores(db: Session) -> int:
             + W_RECENCY * recency_score
         )
 
-        article.recommendation_score = round(score, 4)
+        article.interest_score = round(score, 4)
+        article.recommendation_score = round(score, 4)  # keep in sync
         updated += 1
 
     db.commit()

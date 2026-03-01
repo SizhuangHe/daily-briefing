@@ -78,6 +78,73 @@ def summarize_articles(articles: list[dict]) -> dict[int, str]:
             return {}
 
 
+def analyze_articles(articles: list[dict]) -> dict[int, dict]:
+    """Extract structured fields from articles using Gemini.
+
+    For each article, extracts: event_type, geo_scope, time_sensitivity,
+    severity, personal_impact_flags, one_line_summary, why_it_matters.
+
+    Args:
+        articles: List of dicts with keys: id, title, description, source_name
+
+    Returns:
+        Dict mapping article ID to structured analysis dict.
+    """
+    client = _get_client()
+    if not client or not articles:
+        return {}
+
+    article_texts = []
+    for a in articles:
+        article_texts.append(
+            f"ID: {a['id']}\n"
+            f"Source: {a.get('source_name', 'Unknown')}\n"
+            f"Title: {a['title']}\n"
+            f"Description: {a.get('description', 'N/A')[:500]}\n"
+        )
+
+    prompt = (
+        "You are a news analyst. For each article below, extract structured metadata.\n\n"
+        "For each article, provide:\n"
+        "- event_type: one of [disaster, public_safety, health, weather, policy, war_conflict, "
+        "financial_shock, market, tech, science, crime, infrastructure, diplomacy, sports, entertainment, general]\n"
+        "- geo_scope: one of [global, us, regional, local]\n"
+        "- time_sensitivity: one of [immediate, today, this_week, none]\n"
+        "- severity: one of [critical, high, medium, low]\n"
+        "- personal_impact_flags: array from [travel, health, safety, finance, utilities, "
+        "policy_deadline, work, education] (empty array if none)\n"
+        "- one_line_summary: 1 sentence summary (max 30 words)\n"
+        "- why_it_matters: 1 sentence on why a reader should care (max 25 words)\n\n"
+        "Articles:\n"
+        + "\n---\n".join(article_texts)
+        + "\n\nReturn JSON: {\"articles\": {\"<id>\": {fields...}}}"
+    )
+
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_primary_model,
+            contents=prompt,
+            config={"response_mime_type": "application/json"},
+        )
+        result = json.loads(response.text)
+        articles_data = result.get("articles", result)
+        return {int(k): v for k, v in articles_data.items()}
+    except Exception as e:
+        logger.error(f"Gemini article analysis failed with primary: {e}")
+        try:
+            response = client.models.generate_content(
+                model=settings.gemini_fallback_model,
+                contents=prompt,
+                config={"response_mime_type": "application/json"},
+            )
+            result = json.loads(response.text)
+            articles_data = result.get("articles", result)
+            return {int(k): v for k, v in articles_data.items()}
+        except Exception as e2:
+            logger.error(f"Gemini article analysis failed with fallback: {e2}")
+            return {}
+
+
 def summarize_news_by_topic(articles: list[dict]) -> dict:
     """Generate a high-level news summary organized by topic.
 

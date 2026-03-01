@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import BriefingView from "../Briefing/BriefingView";
 import CalendarSection from "../Calendar/CalendarSection";
 import StocksSection from "../Stocks/StocksSection";
 import NewsSection from "../News/NewsSection";
@@ -26,7 +27,12 @@ export default function DashboardPage() {
           <StocksSection />
         </div>
 
-        {/* News */}
+        {/* Daily Briefing (Must-Know + Interest channels) */}
+        <div className="lg:col-span-2">
+          <BriefingView />
+        </div>
+
+        {/* All News (browse/filter) */}
         <div className="lg:col-span-2">
           <NewsSection />
         </div>

@@ -11,6 +11,42 @@ export interface Article {
   published_at?: string;
 }
 
+export interface BriefArticle {
+  id: number;
+  title: string;
+  description?: string;
+  url: string;
+  source_name?: string;
+  image_url?: string;
+  topics: string[];
+  gemini_summary?: string;
+  event_type?: string;
+  severity?: string;
+  time_sensitivity?: string;
+  geo_scope?: string;
+  personal_impact_flags: string[];
+  why_it_matters?: string;
+  must_know_level: string;
+  importance_score: number;
+  interest_score: number;
+  confirmed_sources: number;
+  published_at?: string;
+}
+
+export interface BriefingSection {
+  title: string;
+  description: string;
+  articles: BriefArticle[];
+}
+
+export interface BriefingResponse {
+  date: string;
+  urgent: BriefingSection;
+  affects_you: BriefingSection;
+  interests: BriefingSection;
+  overview: string;
+}
+
 export interface IndexData {
   name: string;
   symbol: string;
