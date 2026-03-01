@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends
+import json
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.preference import NewsSource, TopicWeight, UserPreference
 from app.schemas.preference import (
     NewsSourceAddRequest,
     NewsSourceResponse,
@@ -12,11 +15,42 @@ from app.schemas.preference import (
 router = APIRouter()
 
 
+def _get_pref(db: Session, key: str, default=None):
+    """Get a user preference value."""
+    pref = db.query(UserPreference).filter_by(key=key).first()
+    if not pref:
+        return default
+    try:
+        return json.loads(pref.value)
+    except (json.JSONDecodeError, TypeError):
+        return pref.value
+
+
+def _set_pref(db: Session, key: str, value) -> None:
+    """Set a user preference value."""
+    existing = db.query(UserPreference).filter_by(key=key).first()
+    encoded = json.dumps(value)
+    if existing:
+        existing.value = encoded
+    else:
+        db.add(UserPreference(key=key, value=encoded))
+
+
 @router.get("", response_model=PreferencesResponse)
 async def get_preferences(db: Session = Depends(get_db)):
     """Get all user preferences."""
-    # TODO: Query user_preferences table
-    return PreferencesResponse()
+    topics = _get_pref(db, "topics", [])
+    rating_mode = _get_pref(db, "rating_mode", "thumbs")
+
+    # Also get topic weights
+    weights = db.query(TopicWeight).all()
+    topic_weights = {tw.topic: tw.weight for tw in weights}
+
+    return PreferencesResponse(
+        topics=topics,
+        rating_mode=rating_mode,
+        topic_weights=topic_weights,
+    )
 
 
 @router.put("", response_model=PreferencesResponse)
@@ -24,18 +58,26 @@ async def update_preferences(
     prefs: PreferencesUpdateRequest, db: Session = Depends(get_db)
 ):
     """Update user preferences."""
-    # TODO: Update user_preferences table
+    if prefs.topics is not None:
+        _set_pref(db, "topics", prefs.topics)
+    if prefs.rating_mode is not None:
+        _set_pref(db, "rating_mode", prefs.rating_mode)
+
+    db.commit()
+
     return PreferencesResponse(
-        topics=prefs.topics or [],
-        rating_mode=prefs.rating_mode or "thumbs",
+        topics=_get_pref(db, "topics", []),
+        rating_mode=_get_pref(db, "rating_mode", "thumbs"),
     )
 
+
+# --- News Sources CRUD ---
 
 @router.get("/sources", response_model=list[NewsSourceResponse])
 async def get_sources(db: Session = Depends(get_db)):
     """List configured news sources."""
-    # TODO: Query news_sources table
-    return []
+    sources = db.query(NewsSource).order_by(NewsSource.name).all()
+    return sources
 
 
 @router.post("/sources", response_model=NewsSourceResponse)
@@ -43,14 +85,38 @@ async def add_source(
     source: NewsSourceAddRequest, db: Session = Depends(get_db)
 ):
     """Add a new news source."""
-    # TODO: Insert into news_sources table
-    return NewsSourceResponse(
-        id=0, name=source.name, url=source.url, source_type=source.source_type
+    existing = db.query(NewsSource).filter_by(url=source.url).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Source URL already exists")
+
+    db_source = NewsSource(
+        name=source.name,
+        url=source.url,
+        source_type=source.source_type,
     )
+    db.add(db_source)
+    db.commit()
+    db.refresh(db_source)
+    return db_source
+
+
+@router.put("/sources/{source_id}")
+async def toggle_source(source_id: int, db: Session = Depends(get_db)):
+    """Toggle a news source enabled/disabled."""
+    source = db.query(NewsSource).filter_by(id=source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    source.enabled = not source.enabled
+    db.commit()
+    return {"id": source.id, "enabled": source.enabled}
 
 
 @router.delete("/sources/{source_id}")
 async def delete_source(source_id: int, db: Session = Depends(get_db)):
     """Remove a news source."""
-    # TODO: Delete from news_sources table
+    source = db.query(NewsSource).filter_by(id=source_id).first()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    db.delete(source)
+    db.commit()
     return {"status": "removed", "id": source_id}

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 class PreferencesResponse(BaseModel):
     topics: list[str] = []
     rating_mode: str = "thumbs"
+    topic_weights: dict[str, float] = {}
 
 
 class PreferencesUpdateRequest(BaseModel):

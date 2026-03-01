@@ -1,9 +1,9 @@
-import { AlertTriangle, Clock, ExternalLink, MapPin, Shield } from "lucide-react";
+import { Clock, ExternalLink, MapPin } from "lucide-react";
 import type { BriefArticle } from "../../types/briefing";
 
 const SEVERITY_STYLES: Record<string, string> = {
-  critical: "border-l-red-500 bg-red-50/40",
-  high: "border-l-orange-400 bg-orange-50/30",
+  critical: "border-l-slate-500",
+  high: "border-l-slate-400",
   medium: "border-l-slate-300",
   low: "border-l-slate-200",
 };
@@ -28,18 +28,18 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 };
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  disaster: "bg-red-100 text-red-700",
-  public_safety: "bg-red-100 text-red-700",
-  health: "bg-rose-100 text-rose-700",
-  weather: "bg-sky-100 text-sky-700",
-  infrastructure: "bg-amber-100 text-amber-700",
-  war_conflict: "bg-orange-100 text-orange-700",
-  policy: "bg-violet-100 text-violet-700",
-  financial_shock: "bg-emerald-100 text-emerald-700",
-  market: "bg-green-100 text-green-700",
-  tech: "bg-blue-100 text-blue-700",
-  science: "bg-teal-100 text-teal-700",
-  crime: "bg-red-100 text-red-700",
+  disaster: "bg-slate-200 text-slate-700",
+  public_safety: "bg-slate-200 text-slate-700",
+  health: "bg-rose-50 text-rose-600",
+  weather: "bg-sky-50 text-sky-600",
+  infrastructure: "bg-amber-50 text-amber-600",
+  war_conflict: "bg-slate-200 text-slate-700",
+  policy: "bg-violet-50 text-violet-600",
+  financial_shock: "bg-emerald-50 text-emerald-600",
+  market: "bg-green-50 text-green-600",
+  tech: "bg-blue-50 text-blue-600",
+  science: "bg-teal-50 text-teal-600",
+  crime: "bg-slate-200 text-slate-700",
 };
 
 function timeAgo(dateStr?: string): string {
@@ -64,7 +64,7 @@ export default function BriefArticleCard({
 
   return (
     <div
-      className={`rounded-md border border-l-4 px-4 py-3 transition-colors hover:bg-slate-50/80 ${severityStyle}`}
+      className={`rounded-md border border-slate-100 border-l-[3px] bg-white px-4 py-3 transition-colors hover:bg-slate-50/60 ${severityStyle}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -73,31 +73,26 @@ export default function BriefArticleCard({
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="group flex items-start gap-1.5 text-sm font-medium text-slate-900 hover:text-blue-700"
+            className="group flex items-start gap-1.5 text-sm font-medium text-slate-800 hover:text-blue-700"
           >
-            {variant === "urgent" && (
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
-            )}
-            {variant === "affects_you" && (
-              <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-orange-500" />
-            )}
             <span className="line-clamp-2">{article.title}</span>
             <ExternalLink className="mt-0.5 h-3 w-3 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover:opacity-100" />
           </a>
 
           {/* Summary */}
           {article.gemini_summary && (
-            <p className="mt-1 text-xs leading-relaxed text-slate-600 line-clamp-2">
+            <p className="mt-1 text-xs leading-relaxed text-slate-500 line-clamp-2">
               {article.gemini_summary}
             </p>
           )}
 
-          {/* Why it matters */}
-          {article.why_it_matters && (variant === "urgent" || variant === "affects_you") && (
-            <p className="mt-1 text-xs font-medium text-slate-500 italic">
-              Why it matters: {article.why_it_matters}
-            </p>
-          )}
+          {/* Why it matters - shown for urgent/affects_you, calm tone */}
+          {article.why_it_matters &&
+            (variant === "urgent" || variant === "affects_you") && (
+              <p className="mt-1 text-xs text-slate-400 italic">
+                {article.why_it_matters}
+              </p>
+            )}
 
           {/* Meta row */}
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-400">
@@ -115,7 +110,7 @@ export default function BriefArticleCard({
               </span>
             )}
             {article.confirmed_sources >= 2 && (
-              <span className="text-green-600">
+              <span className="text-slate-500">
                 {article.confirmed_sources} sources
               </span>
             )}

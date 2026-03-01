@@ -1,36 +1,36 @@
-import { AlertTriangle, Shield, Sparkles } from "lucide-react";
+import { BookOpen, CircleDot, Sparkles } from "lucide-react";
 import type { BriefingSection } from "../../types/briefing";
 import BriefArticleCard from "./BriefArticleCard";
 
 const SECTION_CONFIG: Record<
   string,
   {
-    icon: typeof AlertTriangle;
+    icon: typeof CircleDot;
     iconColor: string;
     borderColor: string;
-    bgGradient: string;
+    bgColor: string;
     variant: "urgent" | "affects_you" | "normal";
   }
 > = {
   Urgent: {
-    icon: AlertTriangle,
-    iconColor: "text-red-500",
-    borderColor: "border-red-200",
-    bgGradient: "from-red-50 to-orange-50",
+    icon: CircleDot,
+    iconColor: "text-slate-600",
+    borderColor: "border-slate-200",
+    bgColor: "bg-white",
     variant: "urgent",
   },
   "Affects You": {
-    icon: Shield,
-    iconColor: "text-orange-500",
-    borderColor: "border-orange-200",
-    bgGradient: "from-orange-50 to-amber-50",
+    icon: BookOpen,
+    iconColor: "text-slate-500",
+    borderColor: "border-slate-200",
+    bgColor: "bg-white",
     variant: "affects_you",
   },
   "Your Interests": {
     icon: Sparkles,
     iconColor: "text-blue-500",
-    borderColor: "border-blue-100",
-    bgGradient: "from-blue-50 to-indigo-50",
+    borderColor: "border-slate-200",
+    bgColor: "bg-white",
     variant: "normal",
   },
 };
@@ -47,7 +47,7 @@ export default function BriefingSectionCard({
 
   return (
     <div
-      className={`rounded-lg border ${config.borderColor} bg-gradient-to-r ${config.bgGradient} p-5`}
+      className={`rounded-lg border ${config.borderColor} ${config.bgColor} p-5 shadow-sm`}
     >
       {/* Header */}
       <div className="mb-1 flex items-center gap-2">
