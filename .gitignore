@@ -35,6 +35,9 @@ Thumbs.db
 *.swo
 *~
 
+# Generated output
+output/
+
 # Build artifacts
 build/
 *.so

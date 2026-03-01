@@ -2,11 +2,6 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
-from app.schemas.article import ArticleResponse
-from app.schemas.calendar import CalendarSummaryResponse
-from app.schemas.inspiration import InspirationResponse
-from app.schemas.stock import IndexResponse, WatchlistItemResponse
-
 
 class BriefArticle(BaseModel):
     """Article in a briefing section with importance context."""
@@ -33,21 +28,37 @@ class BriefArticle(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class StorySource(BaseModel):
+    """A source article within a story cluster."""
+    id: int
+    title: str
+    url: str
+    source_name: str | None = None
+    published_at: datetime | None = None
+
+
+class BriefingStory(BaseModel):
+    """A story/topic cluster in the briefing."""
+    headline: str
+    narrative: str
+    why_it_matters: str | None = None
+    event_type: str | None = None
+    severity: str | None = None
+    must_know_level: str = "normal"
+    importance_score: float = 0.0
+    interest_score: float = 0.0
+    sources: list[StorySource] = []
+
+
 class BriefingSection(BaseModel):
     """A section in the daily briefing."""
     title: str
     description: str = ""
-    articles: list[BriefArticle] = []
-
-
-class StocksSection(BaseModel):
-    indices: list[IndexResponse] = []
-    watchlist: list[WatchlistItemResponse] = []
+    stories: list[BriefingStory] = []
 
 
 class BriefingResponse(BaseModel):
     date: date
-    # 5-section structured brief
     urgent: BriefingSection = BriefingSection(
         title="Urgent",
         description="Critical events you need to know about right now",
@@ -60,10 +71,4 @@ class BriefingResponse(BaseModel):
         title="Your Interests",
         description="Personalized picks based on your preferences",
     )
-    overview: str = ""  # AI-generated one-paragraph overview
-
-    # Other sections
-    news: list[ArticleResponse] = []
-    stocks: StocksSection = StocksSection()
-    calendar: CalendarSummaryResponse = CalendarSummaryResponse()
-    inspiration: InspirationResponse = InspirationResponse()
+    overview: str = ""

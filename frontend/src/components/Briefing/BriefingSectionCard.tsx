@@ -1,6 +1,6 @@
 import { BookOpen, CircleDot, Sparkles } from "lucide-react";
 import type { BriefingSection } from "../../types/briefing";
-import BriefArticleCard from "./BriefArticleCard";
+import StoryCard from "./StoryCard";
 
 const SECTION_CONFIG: Record<
   string,
@@ -43,7 +43,7 @@ export default function BriefingSectionCard({
   const config = SECTION_CONFIG[section.title] || SECTION_CONFIG["Your Interests"];
   const Icon = config.icon;
 
-  if (!section.articles.length) return null;
+  if (!section.stories.length) return null;
 
   return (
     <div
@@ -56,17 +56,17 @@ export default function BriefingSectionCard({
           {section.title}
         </h3>
         <span className="text-xs text-slate-400">
-          ({section.articles.length})
+          ({section.stories.length})
         </span>
       </div>
       <p className="mb-3 text-xs text-slate-500">{section.description}</p>
 
-      {/* Articles */}
+      {/* Stories */}
       <div className="space-y-2">
-        {section.articles.map((article) => (
-          <BriefArticleCard
-            key={article.id}
-            article={article}
+        {section.stories.map((story, i) => (
+          <StoryCard
+            key={`${story.headline}-${i}`}
+            story={story}
             variant={config.variant}
           />
         ))}

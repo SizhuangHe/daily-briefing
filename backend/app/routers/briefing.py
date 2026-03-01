@@ -6,31 +6,24 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.briefing import BriefingResponse
 from app.services import briefing_service
-from app.services import gemini_service, news_service
 
 router = APIRouter()
 
 
 @router.get("/briefing", response_model=BriefingResponse)
 async def get_briefing(db: Session = Depends(get_db)):
-    """Get the aggregated daily briefing with Must-Know + Interest channels."""
+    """Get the aggregated daily briefing with story clusters."""
     sections = briefing_service.build_briefing(db)
 
-    # Generate AI overview from urgent + affects_you articles
-    overview_articles = []
+    # Build overview from story headlines in urgent + affects_you
+    overview_parts = []
     for section in [sections["urgent"], sections["affects_you"]]:
-        for a in section.articles:
-            overview_articles.append({
-                "title": a.title,
-                "description": a.gemini_summary or a.description or "",
-                "source_name": a.source_name or "",
-                "topics": a.topics,
-            })
+        for story in section.stories:
+            overview_parts.append(story.headline)
 
     overview = ""
-    if overview_articles:
-        summary_data = gemini_service.summarize_news_by_topic(overview_articles)
-        overview = summary_data.get("overview", "")
+    if overview_parts:
+        overview = "Today's key stories: " + "; ".join(overview_parts) + "."
 
     return BriefingResponse(
         date=date.today(),

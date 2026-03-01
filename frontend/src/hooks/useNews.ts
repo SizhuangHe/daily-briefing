@@ -34,6 +34,7 @@ export function useRefreshNews() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["news"] });
       queryClient.invalidateQueries({ queryKey: ["news-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["briefing"] });
     },
   });
 }

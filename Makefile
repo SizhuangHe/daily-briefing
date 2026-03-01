@@ -1,4 +1,4 @@
-.PHONY: install dev dev-api dev-worker dev-frontend build test clean
+.PHONY: install dev dev-api dev-worker dev-frontend build test clean generate
 
 # Install all dependencies
 install:
@@ -35,6 +35,10 @@ test:
 # Build frontend for production
 build:
 	cd frontend && npm run build
+
+# Generate daily briefing (fetch news + export HTML)
+generate:
+	cd backend && python generate_briefing.py
 
 # Clean generated files
 clean:

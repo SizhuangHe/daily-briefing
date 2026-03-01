@@ -262,3 +262,88 @@ def _fallback_schedule_summary(events: list[dict], reminders: list[dict]) -> str
     else:
         parts.append("No pending reminders.")
     return " ".join(parts)
+
+
+def cluster_and_narrate(articles: list[dict]) -> list[dict]:
+    """Cluster related articles into stories and generate narrative summaries.
+
+    Args:
+        articles: List of dicts with keys: id, title, description, source_name,
+                  event_type, severity, importance_score, interest_score,
+                  must_know_level, published_at
+
+    Returns:
+        List of story dicts, each with:
+          headline, narrative, why_it_matters, event_type, severity, article_ids
+    """
+    client = _get_client()
+    if not client or not articles:
+        return _fallback_cluster(articles)
+
+    article_texts = []
+    for a in articles:
+        article_texts.append(
+            f"ID: {a['id']}\n"
+            f"Title: {a['title']}\n"
+            f"Source: {a.get('source_name', 'Unknown')}\n"
+            f"Description: {(a.get('description') or '')[:300]}\n"
+            f"Event type: {a.get('event_type', 'general')}\n"
+            f"Severity: {a.get('severity', 'medium')}"
+        )
+
+    prompt = (
+        "You are a news editor creating a morning briefing. Given the articles below, "
+        "group related articles covering the same event or topic into stories. "
+        "For each story, write a concise narrative summary.\n\n"
+        "Rules:\n"
+        "- Articles about the same event/topic from different sources = ONE story\n"
+        "- Each article belongs to exactly one story\n"
+        "- Write a short headline (max 10 words) for each story\n"
+        "- Write a 2-3 sentence narrative that explains what happened (not just repeating headlines)\n"
+        "- Write 1 sentence on why it matters to the reader\n"
+        "- Use the most significant event_type and severity from the cluster\n"
+        "- Sort stories by importance (most critical first)\n"
+        "- Single-article topics are fine as their own story\n\n"
+        "Articles:\n"
+        + "\n---\n".join(article_texts)
+        + '\n\nReturn JSON: {"stories": [{"headline": "...", "narrative": "...", '
+        '"why_it_matters": "...", "event_type": "...", "severity": "...", '
+        '"article_ids": [1, 2, ...]}]}'
+    )
+
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_primary_model,
+            contents=prompt,
+            config={"response_mime_type": "application/json"},
+        )
+        result = json.loads(response.text)
+        return result.get("stories", [])
+    except Exception as e:
+        logger.error(f"Gemini cluster_and_narrate failed with primary: {e}")
+        try:
+            response = client.models.generate_content(
+                model=settings.gemini_fallback_model,
+                contents=prompt,
+                config={"response_mime_type": "application/json"},
+            )
+            result = json.loads(response.text)
+            return result.get("stories", [])
+        except Exception as e2:
+            logger.error(f"Gemini cluster_and_narrate failed with fallback: {e2}")
+            return _fallback_cluster(articles)
+
+
+def _fallback_cluster(articles: list[dict]) -> list[dict]:
+    """Simple fallback: each article becomes its own story."""
+    stories = []
+    for a in articles:
+        stories.append({
+            "headline": a.get("title", "Untitled"),
+            "narrative": a.get("description") or a.get("title", ""),
+            "why_it_matters": None,
+            "event_type": a.get("event_type", "general"),
+            "severity": a.get("severity", "medium"),
+            "article_ids": [a["id"]],
+        })
+    return stories

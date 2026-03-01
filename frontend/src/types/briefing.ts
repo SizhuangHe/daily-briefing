@@ -33,10 +33,30 @@ export interface BriefArticle {
   published_at?: string;
 }
 
+export interface StorySource {
+  id: number;
+  title: string;
+  url: string;
+  source_name?: string;
+  published_at?: string;
+}
+
+export interface BriefingStory {
+  headline: string;
+  narrative: string;
+  why_it_matters?: string;
+  event_type?: string;
+  severity?: string;
+  must_know_level: string;
+  importance_score: number;
+  interest_score: number;
+  sources: StorySource[];
+}
+
 export interface BriefingSection {
   title: string;
   description: string;
-  articles: BriefArticle[];
+  stories: BriefingStory[];
 }
 
 export interface BriefingResponse {

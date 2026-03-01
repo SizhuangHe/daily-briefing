@@ -1,88 +1,42 @@
 """
 Briefing assembly service.
 
-Merges Must-Know channel (importance) and Interest channel (TF-IDF)
-into a structured 5-section daily briefing.
+Clusters articles into stories via Gemini, then splits stories into
+Urgent / Affects You / Your Interests tiers.
 """
 
-import json
 import logging
-from datetime import date
 
 from sqlalchemy.orm import Session
 
 from app.models.article import Article
-from app.schemas.briefing import BriefArticle, BriefingSection
+from app.schemas.briefing import BriefingSection, BriefingStory, StorySource
+from app.services import gemini_service
 from app.services import importance as importance_service
 from app.services import recommendation
 
 logger = logging.getLogger(__name__)
 
-# Limits per section
+# Max stories per section
 MAX_URGENT = 3
 MAX_AFFECTS_YOU = 5
-MAX_INTERESTS = 12
+MAX_INTERESTS = 10
 
-
-def _article_to_brief(article: Article) -> BriefArticle:
-    """Convert DB article to BriefArticle."""
-    topics = []
-    if article.topics:
-        try:
-            topics = json.loads(article.topics)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    impact_flags = []
-    if article.personal_impact_flags:
-        try:
-            impact_flags = json.loads(article.personal_impact_flags)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    # Extract "why it matters" from gemini_summary if it contains " — "
-    summary = article.gemini_summary or ""
-    why_it_matters = None
-    if " — " in summary:
-        parts = summary.split(" — ", 1)
-        summary = parts[0]
-        why_it_matters = parts[1]
-
-    return BriefArticle(
-        id=article.id,
-        title=article.title,
-        description=article.description,
-        url=article.url,
-        source_name=article.source_name,
-        image_url=article.image_url,
-        topics=topics,
-        gemini_summary=summary,
-        event_type=article.event_type,
-        severity=article.severity,
-        time_sensitivity=article.time_sensitivity,
-        geo_scope=article.geo_scope,
-        personal_impact_flags=impact_flags,
-        why_it_matters=why_it_matters,
-        must_know_level=article.must_know_level or "normal",
-        importance_score=article.importance_score or 0.0,
-        interest_score=article.interest_score or 0.0,
-        confirmed_sources=article.confirmed_sources or 1,
-        published_at=article.published_at,
-    )
+# Importance thresholds (same as importance.py)
+URGENT_THRESHOLD = 0.75
+AFFECTS_YOU_THRESHOLD = 0.45
 
 
 def build_briefing(db: Session) -> dict:
-    """Build the structured daily briefing.
+    """Build the structured daily briefing with story clusters.
 
     Returns dict with urgent, affects_you, interests sections.
     """
-    # Ensure articles have been analyzed
+    # 1. Run importance analysis + interest scoring
     importance_service.analyze_and_score_articles(db, limit=50)
-
-    # Ensure interest scores are up to date
     recommendation.recalculate_scores(db)
 
-    # Fetch all recent articles sorted by importance
+    # 2. Fetch recent analyzed articles
     all_articles = (
         db.query(Article)
         .filter(Article.event_type.isnot(None))
@@ -91,52 +45,115 @@ def build_briefing(db: Session) -> dict:
         .all()
     )
 
-    used_ids: set[int] = set()
+    if not all_articles:
+        empty_section = lambda title, desc: BriefingSection(title=title, description=desc)
+        return {
+            "urgent": empty_section("Urgent", "Critical events you need to know about right now"),
+            "affects_you": empty_section("Affects You", "News that may impact your daily life"),
+            "interests": empty_section("Your Interests", "Personalized picks based on your preferences"),
+        }
 
-    # Section 1: Urgent (must-know, importance >= urgent threshold)
-    urgent_articles = [
-        a for a in all_articles
-        if a.must_know_level == "urgent"
-    ][:MAX_URGENT]
+    # 3. Build article lookup and Gemini input
+    article_map: dict[int, Article] = {a.id: a for a in all_articles}
 
-    for a in urgent_articles:
-        used_ids.add(a.id)
-
-    # Section 2: Affects You (importance >= affects_you threshold, not already in urgent)
-    affects_articles = [
-        a for a in all_articles
-        if a.must_know_level == "affects_you" and a.id not in used_ids
-    ][:MAX_AFFECTS_YOU]
-
-    for a in affects_articles:
-        used_ids.add(a.id)
-
-    # Section 3: Your Interests (by interest_score, not already used)
-    interest_candidates = [
-        a for a in all_articles
-        if a.id not in used_ids
+    article_dicts = [
+        {
+            "id": a.id,
+            "title": a.title,
+            "description": a.description or "",
+            "source_name": a.source_name or "",
+            "event_type": a.event_type or "general",
+            "severity": a.severity or "medium",
+            "importance_score": a.importance_score or 0.0,
+            "interest_score": a.interest_score or 0.0,
+            "must_know_level": a.must_know_level or "normal",
+            "published_at": str(a.published_at) if a.published_at else None,
+        }
+        for a in all_articles
     ]
-    interest_candidates.sort(key=lambda a: a.interest_score or 0.0, reverse=True)
 
-    # Apply diversity constraint
-    interest_articles = recommendation.apply_diversity(
-        interest_candidates, limit=MAX_INTERESTS
-    )
+    # 4. Cluster articles into stories via Gemini
+    stories_raw = gemini_service.cluster_and_narrate(article_dicts)
+
+    # 5. Enrich stories with scores from their articles
+    enriched_stories: list[BriefingStory] = []
+    for story_data in stories_raw:
+        article_ids = story_data.get("article_ids", [])
+        cluster_articles = [article_map[aid] for aid in article_ids if aid in article_map]
+
+        if not cluster_articles:
+            continue
+
+        # Derive scores from the cluster
+        max_importance = max((a.importance_score or 0.0) for a in cluster_articles)
+        avg_interest = sum((a.interest_score or 0.0) for a in cluster_articles) / len(cluster_articles)
+
+        # Must-know level from the highest-importance article
+        best_article = max(cluster_articles, key=lambda a: a.importance_score or 0.0)
+        must_know_level = best_article.must_know_level or "normal"
+
+        # Build source references
+        sources = [
+            StorySource(
+                id=a.id,
+                title=a.title,
+                url=a.url,
+                source_name=a.source_name,
+                published_at=a.published_at,
+            )
+            for a in cluster_articles
+        ]
+
+        enriched_stories.append(BriefingStory(
+            headline=story_data.get("headline", "Untitled"),
+            narrative=story_data.get("narrative", ""),
+            why_it_matters=story_data.get("why_it_matters"),
+            event_type=story_data.get("event_type"),
+            severity=story_data.get("severity"),
+            must_know_level=must_know_level,
+            importance_score=max_importance,
+            interest_score=avg_interest,
+            sources=sources,
+        ))
+
+    # 6. Split stories into 3 tiers
+    used_story_indices: set[int] = set()
+
+    urgent_stories = []
+    for i, s in enumerate(enriched_stories):
+        if s.must_know_level == "urgent" and len(urgent_stories) < MAX_URGENT:
+            urgent_stories.append(s)
+            used_story_indices.add(i)
+
+    affects_stories = []
+    for i, s in enumerate(enriched_stories):
+        if i not in used_story_indices and s.must_know_level == "affects_you" and len(affects_stories) < MAX_AFFECTS_YOU:
+            affects_stories.append(s)
+            used_story_indices.add(i)
+
+    interest_stories = []
+    remaining = [
+        (i, s) for i, s in enumerate(enriched_stories)
+        if i not in used_story_indices
+    ]
+    remaining.sort(key=lambda x: x[1].interest_score, reverse=True)
+    for i, s in remaining[:MAX_INTERESTS]:
+        interest_stories.append(s)
 
     return {
         "urgent": BriefingSection(
             title="Urgent",
             description="Critical events you need to know about right now",
-            articles=[_article_to_brief(a) for a in urgent_articles],
+            stories=urgent_stories,
         ),
         "affects_you": BriefingSection(
             title="Affects You",
             description="News that may impact your daily life",
-            articles=[_article_to_brief(a) for a in affects_articles],
+            stories=affects_stories,
         ),
         "interests": BriefingSection(
             title="Your Interests",
             description="Personalized picks based on your preferences",
-            articles=[_article_to_brief(a) for a in interest_articles],
+            stories=interest_stories,
         ),
     }

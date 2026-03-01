@@ -3,7 +3,6 @@ import BriefingView from "../Briefing/BriefingView";
 import CalendarSection from "../Calendar/CalendarSection";
 import InspirationSection from "../Inspiration/InspirationSection";
 import StocksSection from "../Stocks/StocksSection";
-import NewsSection from "../News/NewsSection";
 
 export default function DashboardPage() {
   const today = format(new Date(), "EEEE, MMMM d, yyyy");
@@ -28,14 +27,9 @@ export default function DashboardPage() {
           <StocksSection />
         </div>
 
-        {/* Daily Briefing (Must-Know + Interest channels) */}
+        {/* Daily Briefing (story-based) */}
         <div className="lg:col-span-2">
           <BriefingView />
-        </div>
-
-        {/* All News (browse/filter) */}
-        <div className="lg:col-span-2">
-          <NewsSection />
         </div>
 
         {/* Inspiration */}
