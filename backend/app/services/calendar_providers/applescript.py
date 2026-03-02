@@ -1,6 +1,7 @@
 """macOS Calendar/Reminders provider using AppleScript."""
 
 import logging
+import re
 from datetime import date, datetime
 
 from app.schemas.calendar import CalendarEvent, Reminder
@@ -18,28 +19,40 @@ class AppleScriptProvider(CalendarProvider):
 
     async def get_events(self, target_date: date) -> list[CalendarEvent]:
         """Get calendar events for the given date via AppleScript."""
-        date_str = target_date.strftime("%Y-%m-%d")
+        # Use current date manipulation instead of locale-dependent date strings
+        today = date.today()
+        day_offset = (target_date - today).days
+
+        if day_offset == 0:
+            date_expr = "set targetDate to current date"
+        else:
+            date_expr = f"set targetDate to (current date) + ({day_offset} * days)"
 
         script = f'''
 tell application "Calendar"
-    set targetDate to date "{target_date.strftime("%B %d, %Y")}"
+    {date_expr}
+    set hours of targetDate to 0
+    set minutes of targetDate to 0
+    set seconds of targetDate to 0
     set startOfDay to targetDate
     set endOfDay to targetDate + (1 * days)
     set output to ""
     repeat with cal in calendars
         set calName to name of cal
-        set dayEvents to (every event of cal whose start date >= startOfDay and start date < endOfDay)
-        repeat with evt in dayEvents
-            set evtTitle to summary of evt
-            set evtStart to start date of evt
-            set evtEnd to end date of evt
-            set evtLoc to ""
-            try
-                set evtLoc to location of evt
-            end try
-            if evtLoc is missing value then set evtLoc to ""
-            set output to output & evtTitle & "{DELIM}" & (evtStart as string) & "{DELIM}" & (evtEnd as string) & "{DELIM}" & evtLoc & "{DELIM}" & calName & linefeed
-        end repeat
+        try
+            set dayEvents to (every event of cal whose start date >= startOfDay and start date < endOfDay)
+            repeat with evt in dayEvents
+                set evtTitle to summary of evt
+                set evtStart to start date of evt
+                set evtEnd to end date of evt
+                set evtLoc to ""
+                try
+                    set evtLoc to location of evt
+                end try
+                if evtLoc is missing value then set evtLoc to ""
+                set output to output & evtTitle & "{DELIM}" & (evtStart as string) & "{DELIM}" & (evtEnd as string) & "{DELIM}" & evtLoc & "{DELIM}" & calName & linefeed
+            end repeat
+        end try
     end repeat
     return output
 end tell
@@ -160,11 +173,20 @@ end tell
 
     @staticmethod
     def _parse_datetime(s: str) -> datetime | None:
-        """Try multiple macOS date formats."""
+        """Try multiple macOS date formats including Chinese locale."""
         if not s:
             return None
 
-        # macOS AppleScript dates come in various locale-dependent formats
+        # Chinese locale: "2026年3月1日 星期日 14:00:00"
+        zh_match = re.match(
+            r"(\d{4})年(\d{1,2})月(\d{1,2})日\s+\S+\s+(\d{1,2}):(\d{2}):(\d{2})",
+            s,
+        )
+        if zh_match:
+            y, mo, d, h, mi, sec = (int(x) for x in zh_match.groups())
+            return datetime(y, mo, d, h, mi, sec)
+
+        # English locale formats
         formats = [
             "%A, %B %d, %Y at %I:%M:%S %p",   # "Saturday, March 1, 2026 at 2:00:00 PM"
             "%B %d, %Y at %I:%M:%S %p",         # "March 1, 2026 at 2:00:00 PM"

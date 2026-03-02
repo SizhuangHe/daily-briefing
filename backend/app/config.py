@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
+    # Calendar provider: "google" or "apple"
+    calendar_provider: str = "google"
+
     # CORS
     frontend_url: str = "http://localhost:5173"
 

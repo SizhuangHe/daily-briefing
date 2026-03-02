@@ -8,6 +8,10 @@
 *.db
 backend/data/daily_briefing.db
 
+# Google OAuth tokens & credentials
+backend/data/google_token*.json
+backend/data/google_credentials.json
+
 # Python
 __pycache__/
 *.pyc

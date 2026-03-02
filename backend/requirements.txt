@@ -23,6 +23,11 @@ numpy>=1.26.0
 # Gemini API (new SDK)
 google-genai>=1.0.0
 
+# Google Calendar API
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+
 # Scheduling
 apscheduler>=3.10.4
 

@@ -2,21 +2,31 @@
 Calendar service with provider abstraction.
 
 Uses CalendarProvider interface to support multiple backends
-(AppleScript for macOS, Google Calendar API for future).
+(Google Calendar API or AppleScript for macOS).
 """
 
 import logging
 from datetime import date
 
+from app.config import settings
 from app.schemas.calendar import CalendarEvent, Reminder
-from app.services.calendar_providers.applescript import AppleScriptProvider
 from app.services.calendar_providers.base import CalendarProvider
 from app.services import gemini_service
 
 logger = logging.getLogger(__name__)
 
-# Default provider for macOS
-_provider: CalendarProvider = AppleScriptProvider()
+
+def _create_provider() -> CalendarProvider:
+    """Create calendar provider based on config."""
+    if settings.calendar_provider == "google":
+        from app.services.calendar_providers.google import GoogleCalendarProvider
+        return GoogleCalendarProvider()
+    else:
+        from app.services.calendar_providers.applescript import AppleScriptProvider
+        return AppleScriptProvider()
+
+
+_provider: CalendarProvider = _create_provider()
 
 
 def get_provider() -> CalendarProvider:
@@ -32,8 +42,10 @@ async def get_events(target_date: date | None = None) -> list[CalendarEvent]:
 
 
 async def get_reminders() -> list[Reminder]:
-    """Get pending reminders."""
-    return await _provider.get_reminders()
+    """Get pending reminders (always from Apple Reminders)."""
+    from app.services.calendar_providers.applescript import AppleScriptProvider
+    apple = AppleScriptProvider()
+    return await apple.get_reminders()
 
 
 async def get_summary() -> str:
