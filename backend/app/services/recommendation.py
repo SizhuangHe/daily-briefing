@@ -141,7 +141,7 @@ def apply_diversity(
             continue
 
         # Check topic ratio (for primary topic)
-        primary_topic = topics[0] if topics else "general"
+        primary_topic = topics[0] if topics else None
         if topic_counts[primary_topic] / max(len(selected), 1) >= MAX_TOPIC_RATIO:
             continue
 
@@ -219,12 +219,12 @@ def update_topic_weights(db: Session) -> None:
 def _get_topics(article: Article) -> list[str]:
     """Parse JSON topics from article."""
     if not article.topics:
-        return ["general"]
+        return []
     try:
         topics = json.loads(article.topics)
-        return topics if topics else ["general"]
+        return [t for t in topics if t != "general"] if topics else []
     except (json.JSONDecodeError, TypeError):
-        return ["general"]
+        return []
 
 
 def _build_topic_preferences(

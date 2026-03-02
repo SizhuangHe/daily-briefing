@@ -58,6 +58,12 @@ class BriefingSection(BaseModel):
     stories: list[BriefingStory] = []
 
 
+class OverviewDomain(BaseModel):
+    """A single domain/theme in the at-a-glance overview."""
+    domain: str       # e.g. "International", "Economy", "Technology"
+    summary: str      # 1-2 sentence summary
+
+
 class BriefingResponse(BaseModel):
     date: date
     urgent: BriefingSection = BriefingSection(
@@ -73,3 +79,4 @@ class BriefingResponse(BaseModel):
         description="Personalized picks based on your preferences",
     )
     overview: str = ""
+    overview_domains: list[OverviewDomain] = []

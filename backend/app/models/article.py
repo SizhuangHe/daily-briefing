@@ -9,6 +9,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.orm import deferred
 
 from app.database import Base
 
@@ -21,7 +22,7 @@ class Article(Base):
     canonical_url = Column(Text)
     title = Column(Text, nullable=False)
     description = Column(Text)
-    content = Column(Text)
+    content = deferred(Column(Text))
     url = Column(Text, nullable=False)
     source_name = Column(Text)
     source_url = Column(Text)
@@ -48,7 +49,7 @@ class Article(Base):
     confirmed_sources = Column(Integer, default=1)
 
     # Cached embedding from Gemini text-embedding-004
-    embedding = Column(Text)  # JSON-encoded list[float]
+    embedding = deferred(Column(Text))  # JSON-encoded list[float]
 
     published_at = Column(DateTime)
     fetched_at = Column(DateTime, default=datetime.utcnow)

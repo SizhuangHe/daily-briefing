@@ -19,6 +19,18 @@ import {
 } from "../../hooks/useDev";
 import type { ArticleScoreBreakdown, CentroidDetail } from "../../api/dev";
 
+const REGION_LABELS: Record<string, string> = {
+  us: "US", china: "China", europe: "Europe", middle_east: "Middle East",
+  japan: "Japan", korea: "Korea", south_asia: "South Asia",
+  southeast_asia: "SE Asia", russia: "Russia", africa: "Africa",
+  latin_america: "Latin America", canada: "Canada", australia: "Australia",
+  uk: "UK", global: "Global",
+};
+
+function regionLabel(r: string): string {
+  return REGION_LABELS[r] || r.charAt(0).toUpperCase() + r.slice(1).replace(/_/g, " ");
+}
+
 function ScoreBar({ value, max = 1, color, baseline }: { value: number; max?: number; color: string; baseline?: number }) {
   const pct = Math.min(100, (value / max) * 100);
   const baselinePct = baseline != null ? Math.min(100, (baseline / max) * 100) : undefined;
@@ -54,6 +66,9 @@ function UserProfileSection() {
   const sortedSources = Object.entries(profile.source_preferences).sort(
     ([, a], [, b]) => b - a
   );
+  const sortedRegions = Object.entries(
+    (profile.region_preferences ?? {}) as Record<string, number>
+  ).sort(([, a], [, b]) => b - a);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -75,65 +90,103 @@ function UserProfileSection() {
         </div>
       </div>
 
-      {/* Topic Weights */}
-      <div className="mb-4">
-        <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
-          Topic Weights
-        </h4>
-        <div className="space-y-1.5">
-          {sortedTopics.map(([topic, weight]) => {
-            const delta = weight - 1.0;
-            return (
-              <div key={topic} className="flex items-center gap-2">
-                <span className="w-28 shrink-0 text-xs text-slate-600" title={topic}>
-                  {topic.replace(/_/g, " ")}
-                </span>
-                <div className="flex-1">
-                  <ScoreBar value={weight} max={2.0} color={delta >= 0 ? "bg-blue-400" : "bg-slate-300"} baseline={1.0} />
-                </div>
-                <span className="flex w-16 items-center justify-end gap-0.5 text-xs tabular-nums">
-                  <span className="text-slate-500">{weight.toFixed(2)}</span>
-                  <span className={delta > 0.01 ? "text-emerald-500" : delta < -0.01 ? "text-red-400" : "text-slate-300"}>
-                    {delta > 0.01 ? "\u25B2" : delta < -0.01 ? "\u25BC" : "\u2014"}
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Topic Weights */}
+        <div>
+          <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+            Topic Weights
+          </h4>
+          <div className="space-y-1.5">
+            {sortedTopics.map(([topic, weight]) => {
+              const delta = weight - 1.0;
+              return (
+                <div key={topic} className="flex items-center gap-2">
+                  <span className="w-28 shrink-0 text-xs text-slate-600" title={topic}>
+                    {topic.replace(/_/g, " ")}
                   </span>
-                </span>
-              </div>
-            );
-          })}
-          {sortedTopics.length === 0 && (
-            <p className="text-xs text-slate-400">No topic weights yet</p>
-          )}
+                  <div className="flex-1">
+                    <ScoreBar value={weight} max={2.0} color={delta >= 0 ? "bg-blue-400" : "bg-slate-300"} baseline={1.0} />
+                  </div>
+                  <span className="flex w-16 items-center justify-end gap-0.5 text-xs tabular-nums">
+                    <span className="text-slate-500">{weight.toFixed(2)}</span>
+                    <span className={delta > 0.01 ? "text-emerald-500" : delta < -0.01 ? "text-red-400" : "text-slate-300"}>
+                      {delta > 0.01 ? "\u25B2" : delta < -0.01 ? "\u25BC" : "\u2014"}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+            {sortedTopics.length === 0 && (
+              <p className="text-xs text-slate-400">No topic weights yet</p>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Source Preferences */}
-      <div>
-        <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
-          Source Preferences
-        </h4>
-        <div className="space-y-1.5">
-          {sortedSources.slice(0, 15).map(([source, weight]) => {
-            const delta = weight - 0.6;
-            return (
-              <div key={source} className="flex items-center gap-2">
-                <span className="w-32 truncate text-xs text-slate-600">
-                  {source}
-                </span>
-                <div className="flex-1">
-                  <ScoreBar value={weight} max={1.0} color={delta >= 0 ? "bg-emerald-400" : "bg-slate-300"} baseline={0.6} />
-                </div>
-                <span className="flex w-16 items-center justify-end gap-0.5 text-xs tabular-nums">
-                  <span className="text-slate-500">{weight.toFixed(2)}</span>
-                  <span className={delta > 0.01 ? "text-emerald-500" : delta < -0.01 ? "text-red-400" : "text-slate-300"}>
-                    {delta > 0.01 ? "\u25B2" : delta < -0.01 ? "\u25BC" : "\u2014"}
+        {/* Source Preferences */}
+        <div>
+          <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+            Source Preferences
+          </h4>
+          <div className="space-y-1.5">
+            {sortedSources.slice(0, 15).map(([source, weight]) => {
+              const delta = weight - 0.6;
+              return (
+                <div key={source} className="flex items-center gap-2">
+                  <span className="w-32 truncate text-xs text-slate-600">
+                    {source}
                   </span>
-                </span>
-              </div>
-            );
-          })}
-          {sortedSources.length === 0 && (
-            <p className="text-xs text-slate-400">No source data yet</p>
-          )}
+                  <div className="flex-1">
+                    <ScoreBar value={weight} max={1.0} color={delta >= 0 ? "bg-emerald-400" : "bg-slate-300"} baseline={0.6} />
+                  </div>
+                  <span className="flex w-16 items-center justify-end gap-0.5 text-xs tabular-nums">
+                    <span className="text-slate-500">{weight.toFixed(2)}</span>
+                    <span className={delta > 0.01 ? "text-emerald-500" : delta < -0.01 ? "text-red-400" : "text-slate-300"}>
+                      {delta > 0.01 ? "\u25B2" : delta < -0.01 ? "\u25BC" : "\u2014"}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+            {sortedSources.length === 0 && (
+              <p className="text-xs text-slate-400">No source data yet</p>
+            )}
+          </div>
+        </div>
+
+        {/* Region Preferences */}
+        <div>
+          <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+            Region Preferences
+          </h4>
+          <div className="space-y-1.5">
+            {sortedRegions.map(([region, score]) => {
+              const normalized = (score + 1) / 2;
+              return (
+                <div key={region} className="flex items-center gap-2">
+                  <span className="w-28 shrink-0 text-xs text-slate-600">
+                    {regionLabel(region)}
+                  </span>
+                  <div className="flex-1">
+                    <ScoreBar
+                      value={normalized}
+                      max={1.0}
+                      color={score >= 0 ? "bg-cyan-400" : "bg-slate-300"}
+                      baseline={0.5}
+                    />
+                  </div>
+                  <span className="flex w-16 items-center justify-end gap-0.5 text-xs tabular-nums">
+                    <span className="text-slate-500">{score.toFixed(2)}</span>
+                    <span className={score > 0.01 ? "text-emerald-500" : score < -0.01 ? "text-red-400" : "text-slate-300"}>
+                      {score > 0.01 ? "\u25B2" : score < -0.01 ? "\u25BC" : "\u2014"}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+            {sortedRegions.length === 0 && (
+              <p className="text-xs text-slate-400">No region data yet — rate some articles</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -574,10 +627,8 @@ export default function DevPage() {
       </div>
 
       <div className="space-y-4">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <UserProfileSection />
-          <EvalMetricsSection />
-        </div>
+        <UserProfileSection />
+        <EvalMetricsSection />
         <CentroidDetailsSection />
         <ScoreBreakdownSection />
         <div className="grid gap-4 lg:grid-cols-2">

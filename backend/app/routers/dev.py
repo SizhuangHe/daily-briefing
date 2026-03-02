@@ -48,9 +48,36 @@ async def get_profile(db: Session = Depends(get_db)):
         except (json.JSONDecodeError, TypeError):
             pass
 
+    # Region preferences: likes vs dislikes per region
+    region_counts: dict[str, dict[str, int]] = {}
+    for a in articles:
+        r = rating_map.get(a.id)
+        if r is None or not a.regions:
+            continue
+        try:
+            regions = json.loads(a.regions) if isinstance(a.regions, str) else a.regions
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for region in regions:
+            if region not in region_counts:
+                region_counts[region] = {"likes": 0, "dislikes": 0, "total": 0}
+            region_counts[region]["total"] += 1
+            if r > 0:
+                region_counts[region]["likes"] += 1
+            elif r < 0:
+                region_counts[region]["dislikes"] += 1
+
+    # Convert to a score: (likes - dislikes) / total rated, range roughly -1 to 1
+    region_prefs = {}
+    for region, counts in region_counts.items():
+        total = counts["total"]
+        if total > 0:
+            region_prefs[region] = round((counts["likes"] - counts["dislikes"]) / total, 3)
+
     return {
         "topic_weights": topics,
         "source_preferences": source_prefs,
+        "region_preferences": region_prefs,
         "centroid_count": centroid_count,
         "selected_topics": selected_topics,
         "total_liked": len(liked_ids),
@@ -187,7 +214,7 @@ async def get_stats(db: Session = Depends(get_db)):
 
 
 @router.post("/dev/reclassify")
-async def reclassify_topics(db: Session = Depends(get_db)):
+def reclassify_topics(db: Session = Depends(get_db)):
     """Reclassify all articles using Gemini. Use sparingly."""
     updated = news_service.reclassify_all_articles(db)
     total = db.query(Article).count()
@@ -195,7 +222,7 @@ async def reclassify_topics(db: Session = Depends(get_db)):
 
 
 @router.post("/dev/classify-regions")
-async def classify_regions(db: Session = Depends(get_db)):
+def classify_regions(db: Session = Depends(get_db)):
     """Classify all articles by geographic region using Gemini."""
     updated = news_service.classify_all_regions(db)
     total = db.query(Article).count()

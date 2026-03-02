@@ -250,7 +250,7 @@ def analyze_articles(articles: list[dict]) -> dict[int, dict]:
         "You are a news analyst. For each article below, extract structured metadata.\n\n"
         "For each article, provide:\n"
         "- event_type: one of [disaster, public_safety, health, weather, policy, war_conflict, "
-        "financial_shock, market, tech, science, crime, infrastructure, diplomacy, sports, entertainment, general]\n"
+        "financial_shock, market, tech, science, crime, infrastructure, diplomacy, sports, entertainment]\n"
         "- geo_scope: one of [global, us, regional, local]\n"
         "- time_sensitivity: one of [immediate, today, this_week, none]\n"
         "- severity: one of [critical, high, medium, low]\n"
@@ -304,7 +304,7 @@ def summarize_news_by_topic(articles: list[dict]) -> dict:
     # Group articles by topic for the prompt
     article_texts = []
     for i, a in enumerate(articles):
-        topics = ", ".join(a.get("topics", [])) or "general"
+        topics = ", ".join(a.get("topics", [])) or "uncategorized"
         article_texts.append(
             f"{i+1}. [{topics}] {a['title']} ({a.get('source_name', 'Unknown')})\n"
             f"   {a.get('description', '')[:200]}"
@@ -349,7 +349,7 @@ def _fallback_news_summary(articles: list[dict]) -> dict:
     """Simple fallback summary without Gemini."""
     topic_counts: dict[str, int] = {}
     for a in articles:
-        for t in a.get("topics", ["general"]):
+        for t in a.get("topics", []):
             topic_counts[t] = topic_counts.get(t, 0) + 1
 
     sections = []
@@ -430,7 +430,7 @@ def cluster_and_narrate(articles: list[dict]) -> list[dict]:
             f"Title: {a['title']}\n"
             f"Source: {a.get('source_name', 'Unknown')}\n"
             f"Description: {(a.get('description') or '')[:300]}\n"
-            f"Event type: {a.get('event_type', 'general')}\n"
+            f"Event type: {a.get('event_type', 'unknown')}\n"
             f"Severity: {a.get('severity', 'medium')}"
         )
 
@@ -485,7 +485,7 @@ def _fallback_cluster(articles: list[dict]) -> list[dict]:
             "headline": a.get("title", "Untitled"),
             "narrative": a.get("description") or a.get("title", ""),
             "why_it_matters": None,
-            "event_type": a.get("event_type", "general"),
+            "event_type": a.get("event_type", "unknown"),
             "severity": a.get("severity", "medium"),
             "article_ids": [a["id"]],
         })

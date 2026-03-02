@@ -2,7 +2,6 @@ import { format } from "date-fns";
 import BriefingView from "../Briefing/BriefingView";
 import CalendarSection from "../Calendar/CalendarSection";
 import InspirationSection from "../Inspiration/InspirationSection";
-import StocksSection from "../Stocks/StocksSection";
 
 export default function DashboardPage() {
   const today = format(new Date(), "EEEE, MMMM d, yyyy");
@@ -20,11 +19,6 @@ export default function DashboardPage() {
         {/* Calendar & Schedule Summary */}
         <div className="lg:col-span-2">
           <CalendarSection />
-        </div>
-
-        {/* Stock Market */}
-        <div className="lg:col-span-2">
-          <StocksSection />
         </div>
 
         {/* Daily Briefing (story-based) */}

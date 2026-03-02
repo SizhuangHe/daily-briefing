@@ -71,7 +71,7 @@ async def get_sources(db: Session = Depends(get_db)):
 
 
 @router.get("/summary")
-async def get_news_summary(db: Session = Depends(get_db)):
+def get_news_summary(db: Session = Depends(get_db)):
     """Get an AI-generated summary of today's news organized by topic."""
     articles = news_service.get_articles(db, limit=30)
     if not articles:
@@ -190,7 +190,7 @@ async def rate_article(
 
 
 @router.post("/refresh")
-async def refresh_news(db: Session = Depends(get_db)):
+def refresh_news(db: Session = Depends(get_db)):
     """Manually trigger news fetch from all sources + Gemini summaries."""
     new_count = news_service.fetch_all_sources(db)
 

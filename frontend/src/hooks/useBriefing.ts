@@ -5,6 +5,6 @@ export function useBriefing() {
   return useQuery({
     queryKey: ["briefing"],
     queryFn: fetchBriefing,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes — backend caches & checks for new articles
   });
 }

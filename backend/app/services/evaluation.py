@@ -104,10 +104,10 @@ def _coverage(top_k: list[Article], k: int) -> dict:
     source_counter: Counter[str] = Counter()
 
     for a in top_k[:k]:
-        topics = ["general"]
+        topics = []
         if a.topics:
             try:
-                topics = json.loads(a.topics) or ["general"]
+                topics = json.loads(a.topics) or []
             except (json.JSONDecodeError, TypeError):
                 pass
         for t in topics:

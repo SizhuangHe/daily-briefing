@@ -3,6 +3,7 @@ import apiClient from "./client";
 export interface DevProfile {
   topic_weights: Record<string, number>;
   source_preferences: Record<string, number>;
+  region_preferences: Record<string, number>;
   centroid_count: number;
   selected_topics: string[];
   total_liked: number;

@@ -86,12 +86,20 @@ export default function BriefingView() {
         </button>
       </div>
 
-      {/* Overview */}
-      {briefing.overview && (
+      {/* At a Glance */}
+      {briefing.overview_domains?.length > 0 && (
         <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm leading-relaxed text-slate-700">
-            {briefing.overview}
-          </p>
+          <h3 className="mb-3 text-sm font-semibold text-slate-800">
+            Today at a Glance
+          </h3>
+          <div className="space-y-2.5">
+            {briefing.overview_domains.map((d, i) => (
+              <p key={i} className="text-sm leading-relaxed text-slate-700">
+                <span className="font-semibold text-slate-900">{d.domain}:</span>{" "}
+                {d.summary}
+              </p>
+            ))}
+          </div>
         </div>
       )}
 

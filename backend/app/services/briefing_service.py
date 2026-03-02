@@ -7,6 +7,7 @@ Urgent / Affects You / Your Interests tiers.
 
 import logging
 import random
+from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -37,10 +38,12 @@ def build_briefing(db: Session) -> dict:
     importance_service.analyze_and_score_articles(db, limit=50)
     recommendation.recalculate_scores(db)
 
-    # 2. Fetch recent analyzed articles
+    # 2. Fetch articles from the last 24 hours
+    cutoff = datetime.utcnow() - timedelta(hours=24)
     all_articles = (
         db.query(Article)
         .filter(Article.event_type.isnot(None))
+        .filter(Article.published_at >= cutoff)
         .order_by(Article.importance_score.desc())
         .limit(200)
         .all()
@@ -63,7 +66,7 @@ def build_briefing(db: Session) -> dict:
             "title": a.title,
             "description": a.description or "",
             "source_name": a.source_name or "",
-            "event_type": a.event_type or "general",
+            "event_type": a.event_type or "",
             "severity": a.severity or "medium",
             "importance_score": a.importance_score or 0.0,
             "interest_score": a.interest_score or 0.0,

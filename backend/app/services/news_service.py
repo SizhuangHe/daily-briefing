@@ -160,7 +160,7 @@ def _extract_topics(title: str, description: str) -> list[str]:
     for topic, keywords in TOPIC_KEYWORDS.items():
         if any(kw in text for kw in keywords):
             matched.append(topic)
-    return matched if matched else ["general"]
+    return matched
 
 
 def fetch_rss_feed(source: NewsSource) -> list[dict]:
@@ -285,26 +285,30 @@ def fetch_all_sources(db: Session) -> int:
 
     logger.info(f"Fetched {total_new} new articles from {len(sources)} sources")
 
-    # Gemini fallback: reclassify articles still tagged "general"
+    # Gemini fallback: reclassify articles with no topics
     if total_new > 0:
-        _reclassify_general_articles(db)
+        _reclassify_untagged_articles(db)
         _classify_untagged_regions(db)
 
     return total_new
 
 
-def _reclassify_general_articles(db: Session) -> int:
-    """Use Gemini to reclassify articles that only have the 'general' topic."""
-    general_articles = (
+def _reclassify_untagged_articles(db: Session) -> int:
+    """Use Gemini to classify articles that have no topics or only 'general'."""
+    untagged = (
         db.query(Article)
-        .filter(Article.topics == '["general"]')
+        .filter(
+            (Article.topics.is_(None))
+            | (Article.topics == "[]")
+            | (Article.topics == '["general"]')
+        )
         .limit(50)
         .all()
     )
-    if not general_articles:
+    if not untagged:
         return 0
 
-    return _gemini_classify_batch(db, general_articles)
+    return _gemini_classify_batch(db, untagged)
 
 
 def reclassify_all_articles(db: Session) -> int:

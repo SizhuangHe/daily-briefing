@@ -45,7 +45,6 @@ EVENT_TYPE_WEIGHTS = {
     # Low importance
     "sports": 0.15,
     "entertainment": 0.15,
-    "general": 0.25,
 }
 
 SEVERITY_MULTIPLIER = {
@@ -108,7 +107,7 @@ def analyze_and_score_articles(db: Session, limit: int = 50) -> int:
         data = analysis.get(article.id, {})
 
         # Store structured fields
-        article.event_type = data.get("event_type", "general")
+        article.event_type = data.get("event_type")
         article.geo_scope = data.get("geo_scope", "global")
         article.time_sensitivity = data.get("time_sensitivity", "none")
         article.severity = data.get("severity", "medium")
@@ -165,7 +164,7 @@ def score_all_articles(db: Session) -> int:
 def _calculate_importance(article: Article) -> float:
     """Calculate importance score from structured fields."""
     # Base score from event type
-    base = EVENT_TYPE_WEIGHTS.get(article.event_type or "general", 0.25)
+    base = EVENT_TYPE_WEIGHTS.get(article.event_type or "", 0.25)
 
     # Severity multiplier
     multiplier = SEVERITY_MULTIPLIER.get(article.severity or "medium", 0.9)

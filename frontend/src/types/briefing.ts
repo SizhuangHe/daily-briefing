@@ -61,12 +61,18 @@ export interface BriefingSection {
   stories: BriefingStory[];
 }
 
+export interface OverviewDomain {
+  domain: string;
+  summary: string;
+}
+
 export interface BriefingResponse {
   date: string;
   urgent: BriefingSection;
   affects_you: BriefingSection;
   interests: BriefingSection;
   overview: string;
+  overview_domains: OverviewDomain[];
 }
 
 export interface IndexData {
