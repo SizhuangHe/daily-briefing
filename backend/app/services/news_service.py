@@ -288,6 +288,7 @@ def fetch_all_sources(db: Session) -> int:
     # Gemini fallback: reclassify articles still tagged "general"
     if total_new > 0:
         _reclassify_general_articles(db)
+        _classify_untagged_regions(db)
 
     return total_new
 
@@ -346,10 +347,65 @@ def _gemini_classify_batch(db: Session, articles: list[Article]) -> int:
     return updated
 
 
+def _classify_untagged_regions(db: Session) -> int:
+    """Use Gemini to classify regions for articles without region tags."""
+    untagged = (
+        db.query(Article)
+        .filter(Article.regions.is_(None))
+        .order_by(Article.published_at.desc())
+        .limit(50)
+        .all()
+    )
+    if not untagged:
+        return 0
+    return _gemini_regions_batch(db, untagged)
+
+
+def classify_all_regions(db: Session) -> int:
+    """Use Gemini to classify regions for ALL articles. Batches of 30."""
+    articles = db.query(Article).order_by(Article.published_at.desc()).all()
+    if not articles:
+        return 0
+
+    total_updated = 0
+    for i in range(0, len(articles), 30):
+        batch = articles[i : i + 30]
+        total_updated += _gemini_regions_batch(db, batch)
+
+    logger.info(f"Region-tagged {total_updated}/{len(articles)} articles via Gemini")
+    return total_updated
+
+
+def _gemini_regions_batch(db: Session, articles: list[Article]) -> int:
+    """Classify a batch of articles by region using Gemini and update DB."""
+    batch = [
+        {"id": a.id, "title": a.title, "description": a.description}
+        for a in articles
+    ]
+
+    try:
+        classified = gemini_service.classify_regions(batch)
+    except Exception as e:
+        logger.error(f"Gemini region classification failed: {e}")
+        return 0
+
+    updated = 0
+    for a in articles:
+        if a.id in classified:
+            a.regions = json.dumps(classified[a.id])
+            updated += 1
+
+    if updated:
+        db.commit()
+
+    return updated
+
+
 def get_articles(
     db: Session,
     topic: str | None = None,
     source: str | None = None,
+    region: str | None = None,
     sort: str = "score",
     limit: int = 20,
     offset: int = 0,
@@ -370,6 +426,9 @@ def get_articles(
 
     if topic:
         query = query.filter(Article.topics.contains(f'"{topic}"'))
+
+    if region:
+        query = query.filter(Article.regions.contains(f'"{region}"'))
 
     if source:
         query = query.filter(Article.source_name == source)

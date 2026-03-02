@@ -4,6 +4,7 @@ import type { Article, NewsSummary } from "../types/briefing";
 export async function fetchNews(params?: {
   topic?: string;
   source?: string;
+  region?: string;
   sort?: string;
   limit?: number;
   offset?: number;

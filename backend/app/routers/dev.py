@@ -192,3 +192,11 @@ async def reclassify_topics(db: Session = Depends(get_db)):
     updated = news_service.reclassify_all_articles(db)
     total = db.query(Article).count()
     return {"updated": updated, "total": total}
+
+
+@router.post("/dev/classify-regions")
+async def classify_regions(db: Session = Depends(get_db)):
+    """Classify all articles by geographic region using Gemini."""
+    updated = news_service.classify_all_regions(db)
+    total = db.query(Article).count()
+    return {"updated": updated, "total": total}

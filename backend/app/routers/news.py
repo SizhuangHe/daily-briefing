@@ -25,6 +25,13 @@ def _article_to_response(article: Article) -> ArticleResponse:
         except (json.JSONDecodeError, TypeError):
             pass
 
+    regions = []
+    if article.regions:
+        try:
+            regions = json.loads(article.regions)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     return ArticleResponse(
         id=article.id,
         title=article.title,
@@ -33,6 +40,7 @@ def _article_to_response(article: Article) -> ArticleResponse:
         source_name=article.source_name,
         image_url=article.image_url,
         topics=topics,
+        regions=regions,
         gemini_summary=article.gemini_summary,
         recommendation_score=article.recommendation_score or 0.0,
         published_at=article.published_at,
@@ -43,6 +51,7 @@ def _article_to_response(article: Article) -> ArticleResponse:
 async def get_news(
     topic: str | None = None,
     source: str | None = None,
+    region: str | None = None,
     sort: str = Query(default="score", pattern="^(score|time)$"),
     limit: int = Query(default=20, le=500),
     offset: int = Query(default=0, ge=0),
@@ -50,7 +59,7 @@ async def get_news(
 ):
     """Get news articles with optional filtering and sorting."""
     articles = news_service.get_articles(
-        db, topic=topic, source=source, sort=sort, limit=limit, offset=offset
+        db, topic=topic, source=source, region=region, sort=sort, limit=limit, offset=offset
     )
     return [_article_to_response(a) for a in articles]
 

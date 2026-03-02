@@ -6,6 +6,7 @@ export interface Article {
   source_name?: string;
   image_url?: string;
   topics: string[];
+  regions: string[];
   gemini_summary?: string;
   recommendation_score: number;
   published_at?: string;

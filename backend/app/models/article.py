@@ -27,6 +27,7 @@ class Article(Base):
     source_url = Column(Text)
     image_url = Column(Text)
     topics = Column(Text)  # JSON array: ["ai", "tech"]
+    regions = Column(Text)  # JSON array: ["us", "china", "europe"]
     gemini_summary = Column(Text)
 
     # Interest channel (Phase 5 TF-IDF)

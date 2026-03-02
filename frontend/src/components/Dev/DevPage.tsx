@@ -19,14 +19,22 @@ import {
 } from "../../hooks/useDev";
 import type { ArticleScoreBreakdown, CentroidDetail } from "../../api/dev";
 
-function ScoreBar({ value, max = 1, color }: { value: number; max?: number; color: string }) {
+function ScoreBar({ value, max = 1, color, baseline }: { value: number; max?: number; color: string; baseline?: number }) {
   const pct = Math.min(100, (value / max) * 100);
+  const baselinePct = baseline != null ? Math.min(100, (baseline / max) * 100) : undefined;
   return (
-    <div className="h-2 w-full rounded-full bg-slate-100">
+    <div className="relative h-2 w-full rounded-full bg-slate-100">
       <div
         className={`h-2 rounded-full ${color}`}
         style={{ width: `${pct}%` }}
       />
+      {baselinePct != null && (
+        <div
+          className="absolute top-[-2px] h-[12px] w-[2px] rounded-full bg-slate-400"
+          style={{ left: `${baselinePct}%` }}
+          title={`Baseline: ${baseline}`}
+        />
+      )}
     </div>
   );
 }
@@ -73,19 +81,25 @@ function UserProfileSection() {
           Topic Weights
         </h4>
         <div className="space-y-1.5">
-          {sortedTopics.map(([topic, weight]) => (
-            <div key={topic} className="flex items-center gap-2">
-              <span className="w-20 truncate text-xs text-slate-600">
-                {topic}
-              </span>
-              <div className="flex-1">
-                <ScoreBar value={weight} max={2.0} color="bg-blue-400" />
+          {sortedTopics.map(([topic, weight]) => {
+            const delta = weight - 1.0;
+            return (
+              <div key={topic} className="flex items-center gap-2">
+                <span className="w-28 shrink-0 text-xs text-slate-600" title={topic}>
+                  {topic.replace(/_/g, " ")}
+                </span>
+                <div className="flex-1">
+                  <ScoreBar value={weight} max={2.0} color={delta >= 0 ? "bg-blue-400" : "bg-slate-300"} baseline={1.0} />
+                </div>
+                <span className="flex w-16 items-center justify-end gap-0.5 text-xs tabular-nums">
+                  <span className="text-slate-500">{weight.toFixed(2)}</span>
+                  <span className={delta > 0.01 ? "text-emerald-500" : delta < -0.01 ? "text-red-400" : "text-slate-300"}>
+                    {delta > 0.01 ? "\u25B2" : delta < -0.01 ? "\u25BC" : "\u2014"}
+                  </span>
+                </span>
               </div>
-              <span className="w-10 text-right text-xs tabular-nums text-slate-500">
-                {weight.toFixed(2)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
           {sortedTopics.length === 0 && (
             <p className="text-xs text-slate-400">No topic weights yet</p>
           )}
@@ -98,19 +112,25 @@ function UserProfileSection() {
           Source Preferences
         </h4>
         <div className="space-y-1.5">
-          {sortedSources.slice(0, 15).map(([source, weight]) => (
-            <div key={source} className="flex items-center gap-2">
-              <span className="w-32 truncate text-xs text-slate-600">
-                {source}
-              </span>
-              <div className="flex-1">
-                <ScoreBar value={weight} max={1.0} color="bg-emerald-400" />
+          {sortedSources.slice(0, 15).map(([source, weight]) => {
+            const delta = weight - 0.6;
+            return (
+              <div key={source} className="flex items-center gap-2">
+                <span className="w-32 truncate text-xs text-slate-600">
+                  {source}
+                </span>
+                <div className="flex-1">
+                  <ScoreBar value={weight} max={1.0} color={delta >= 0 ? "bg-emerald-400" : "bg-slate-300"} baseline={0.6} />
+                </div>
+                <span className="flex w-16 items-center justify-end gap-0.5 text-xs tabular-nums">
+                  <span className="text-slate-500">{weight.toFixed(2)}</span>
+                  <span className={delta > 0.01 ? "text-emerald-500" : delta < -0.01 ? "text-red-400" : "text-slate-300"}>
+                    {delta > 0.01 ? "\u25B2" : delta < -0.01 ? "\u25BC" : "\u2014"}
+                  </span>
+                </span>
               </div>
-              <span className="w-10 text-right text-xs tabular-nums text-slate-500">
-                {weight.toFixed(2)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
           {sortedSources.length === 0 && (
             <p className="text-xs text-slate-400">No source data yet</p>
           )}

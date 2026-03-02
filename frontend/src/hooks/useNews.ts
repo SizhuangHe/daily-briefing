@@ -4,13 +4,14 @@ import { fetchDislikedArticles, fetchLikedArticles, fetchNews, fetchNewsSummary,
 export function useNews(params?: {
   topic?: string;
   source?: string;
+  region?: string;
   sort?: string;
   limit?: number;
 }) {
-  const { topic, source, sort, limit = 20 } = params ?? {};
+  const { topic, source, region, sort, limit = 20 } = params ?? {};
   return useQuery({
-    queryKey: ["news", topic, source, sort, limit],
-    queryFn: () => fetchNews({ topic, source, sort, limit }),
+    queryKey: ["news", topic, source, region, sort, limit],
+    queryFn: () => fetchNews({ topic, source, region, sort, limit }),
   });
 }
 

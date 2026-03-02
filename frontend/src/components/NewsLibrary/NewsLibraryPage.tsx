@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   ExternalLink,
   Filter,
+  Globe,
   Library,
   Loader2,
   Newspaper,
@@ -47,8 +48,32 @@ const TOPIC_LABELS: Record<string, string> = {
   crypto: "Crypto",
 };
 
+const REGION_LABELS: Record<string, string> = {
+  us: "US",
+  china: "China",
+  europe: "Europe",
+  middle_east: "Middle East",
+  japan: "Japan",
+  korea: "Korea",
+  south_asia: "South Asia",
+  southeast_asia: "SE Asia",
+  russia: "Russia",
+  africa: "Africa",
+  latin_america: "Latin America",
+  canada: "Canada",
+  australia: "Australia",
+  uk: "UK",
+  global: "Global",
+};
+
+const REGION_LIST = Object.keys(REGION_LABELS);
+
 function topicLabel(topic: string): string {
   return TOPIC_LABELS[topic] || topic.charAt(0).toUpperCase() + topic.slice(1);
+}
+
+function regionLabel(region: string): string {
+  return REGION_LABELS[region] || region.charAt(0).toUpperCase() + region.slice(1).replace(/_/g, " ");
 }
 
 function ArticleCard({
@@ -109,6 +134,18 @@ function ArticleCard({
                   ))}
                 </div>
               )}
+              {article.regions?.length > 0 && (
+                <div className="flex gap-1">
+                  {article.regions.slice(0, 3).map((region) => (
+                    <span
+                      key={region}
+                      className="rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-600"
+                    >
+                      {regionLabel(region)}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -150,6 +187,9 @@ export default function NewsLibraryPage() {
   const [selectedSource, setSelectedSource] = useState<string | undefined>(
     undefined
   );
+  const [selectedRegion, setSelectedRegion] = useState<string | undefined>(
+    undefined
+  );
   const [unratedOnly, setUnratedOnly] = useState(false);
 
   const { data: topics, isLoading: topicsLoading } = useAvailableTopics();
@@ -157,6 +197,7 @@ export default function NewsLibraryPage() {
   const { data: articles, isLoading: articlesLoading } = useNews({
     topic: selectedTopic,
     source: selectedSource,
+    region: selectedRegion,
     sort: "time",
     limit: 500,
   });
@@ -251,6 +292,36 @@ export default function NewsLibraryPage() {
             </button>
           ))
         )}
+      </div>
+
+      {/* Region filter bar */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <Globe className="h-3.5 w-3.5 text-slate-400" />
+        <button
+          onClick={() => setSelectedRegion(undefined)}
+          className={clsx(
+            "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+            selectedRegion === undefined
+              ? "bg-emerald-600 text-white"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          )}
+        >
+          All Regions
+        </button>
+        {REGION_LIST.map((region) => (
+          <button
+            key={region}
+            onClick={() => setSelectedRegion(region)}
+            className={clsx(
+              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              selectedRegion === region
+                ? "bg-emerald-600 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            )}
+          >
+            {regionLabel(region)}
+          </button>
+        ))}
       </div>
 
       {/* Source filter + unrated toggle */}

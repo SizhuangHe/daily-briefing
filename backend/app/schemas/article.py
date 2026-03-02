@@ -11,6 +11,7 @@ class ArticleResponse(BaseModel):
     source_name: str | None = None
     image_url: str | None = None
     topics: list[str] = []
+    regions: list[str] = []
     gemini_summary: str | None = None
     recommendation_score: float = 0.0
     published_at: datetime | None = None

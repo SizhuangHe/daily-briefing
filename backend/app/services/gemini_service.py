@@ -51,6 +51,12 @@ VALID_TOPICS = [
     "environment",
 ]
 
+VALID_REGIONS = [
+    "us", "china", "europe", "middle_east", "japan", "korea",
+    "south_asia", "southeast_asia", "russia", "africa",
+    "latin_america", "canada", "australia", "uk", "global",
+]
+
 
 def classify_topics(articles: list[dict]) -> dict[int, list[str]]:
     """Classify articles into topics using Gemini.
@@ -105,6 +111,60 @@ def classify_topics(articles: list[dict]) -> dict[int, list[str]]:
         return classified
     except Exception as e:
         logger.error(f"Gemini topic classification failed: {e}")
+        return {}
+
+
+def classify_regions(articles: list[dict]) -> dict[int, list[str]]:
+    """Classify articles by geographic region using Gemini.
+
+    Args:
+        articles: List of dicts with keys: id, title, description
+
+    Returns:
+        Dict mapping article ID to list of region strings.
+    """
+    client = _get_client()
+    if not client or not articles:
+        return {}
+
+    article_texts = []
+    for a in articles:
+        article_texts.append(
+            f"ID: {a['id']}\n"
+            f"Title: {a['title']}\n"
+            f"Description: {(a.get('description') or '')[:300]}"
+        )
+
+    regions_str = ", ".join(VALID_REGIONS)
+    prompt = (
+        "You are a news geo-tagger. For each article below, assign 1-3 geographic region labels.\n\n"
+        f"Valid regions: {regions_str}\n\n"
+        "Rules:\n"
+        "- Pick the most relevant regions where the event takes place or has impact\n"
+        "- Use 'global' only for truly worldwide events (e.g. climate change, global recession)\n"
+        "- Use 1-3 regions per article\n"
+        "- Only use regions from the valid list above\n\n"
+        "Articles:\n"
+        + "\n---\n".join(article_texts)
+        + '\n\nReturn JSON: {"articles": {"<id>": ["region1", "region2"]}}'
+    )
+
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_fallback_model,
+            contents=prompt,
+            config={"response_mime_type": "application/json"},
+        )
+        result = json.loads(response.text)
+        articles_data = result.get("articles", result)
+        classified = {}
+        for k, v in articles_data.items():
+            valid = [r for r in v if r in VALID_REGIONS]
+            if valid:
+                classified[int(k)] = valid
+        return classified
+    except Exception as e:
+        logger.error(f"Gemini region classification failed: {e}")
         return {}
 
 
