@@ -26,7 +26,7 @@ def _get_client() -> genai.Client | None:
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings for a list of texts using Gemini text-embedding-004.
+    """Generate embeddings for a list of texts using Gemini embedding model.
 
     Returns a list of embedding vectors (one per input text).
     Raises on failure (caller should handle).
@@ -36,7 +36,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         raise RuntimeError("Gemini client not available")
 
     result = client.models.embed_content(
-        model="text-embedding-004",
+        model="gemini-embedding-001",
         contents=texts,
     )
     return [emb.values for emb in result.embeddings]
