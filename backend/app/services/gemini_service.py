@@ -88,7 +88,10 @@ def classify_topics(articles: list[dict]) -> dict[int, list[str]]:
         "Rules:\n"
         "- Pick the most specific applicable topics\n"
         "- Use 1-3 topics per article\n"
-        "- Only use topics from the valid list above\n\n"
+        "- Only use topics from the valid list above\n"
+        "- 'sports' is ONLY for articles primarily about athletic competitions, teams, players, or sporting events. "
+        "Do NOT tag geopolitical, finance, or conflict articles as 'sports' even if they mention a sporting event in passing.\n"
+        "- Be precise: an article about oil prices is 'finance'/'energy', not 'sports'\n\n"
         "Articles:\n"
         + "\n---\n".join(article_texts)
         + '\n\nReturn JSON: {"articles": {"<id>": ["topic1", "topic2"]}}'

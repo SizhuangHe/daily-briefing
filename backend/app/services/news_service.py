@@ -9,7 +9,7 @@ import hashlib
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -80,7 +80,8 @@ TOPIC_KEYWORDS = {
     "sports": [
         "nba", "nfl", "mlb", "soccer", "football", "basketball",
         "tennis", "golf", "olympic", "championship", "playoff",
-        "tournament", "athlete", "coach", "stadium", "league",
+        "tournament", "athlete", "coach", "stadium",
+        "premier league", "champions league", "world cup",
     ],
     "entertainment": [
         "movie", "film", "tv show", "netflix", "disney", "streaming",
@@ -290,7 +291,26 @@ def fetch_all_sources(db: Session) -> int:
         _reclassify_untagged_articles(db)
         _classify_untagged_regions(db)
 
+    # Prune articles older than 10 days
+    _cleanup_old_articles(db)
+
     return total_new
+
+
+def _cleanup_old_articles(db: Session) -> int:
+    """Delete articles older than 10 days (or with no publish date)."""
+    cutoff = datetime.utcnow() - timedelta(days=10)
+    deleted = (
+        db.query(Article)
+        .filter(
+            (Article.published_at < cutoff) | (Article.published_at.is_(None))
+        )
+        .delete(synchronize_session="fetch")
+    )
+    if deleted:
+        db.commit()
+        logger.info(f"Cleaned up {deleted} articles older than 10 days")
+    return deleted
 
 
 def _reclassify_untagged_articles(db: Session) -> int:
