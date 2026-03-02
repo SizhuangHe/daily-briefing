@@ -5,6 +5,7 @@ import {
   Library,
   Loader2,
   Newspaper,
+  RefreshCw,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import {
   useNewsSources,
   useRatings,
   useRateArticle,
+  useRefreshNews,
 } from "../../hooks/useNews";
 import { useAvailableTopics } from "../../hooks/usePreferences";
 import type { Article } from "../../types/briefing";
@@ -160,6 +162,7 @@ export default function NewsLibraryPage() {
   });
   const { data: ratingsMap } = useRatings();
   const rateMutation = useRateArticle();
+  const refreshMutation = useRefreshNews();
 
   const handleRate = (articleId: number, score: number) => {
     const currentRating = ratingsMap?.[articleId] ?? null;
@@ -182,13 +185,14 @@ export default function NewsLibraryPage() {
   return (
     <div>
       <div className="mb-6">
-        <div className="flex items-center gap-2">
-          <Library className="h-5 w-5 text-blue-500" />
-          <h2 className="text-lg font-bold text-slate-900">News Library</h2>
-          {articles && (
-            <span className="text-sm text-slate-400">
-              {unratedOnly
-                ? `${filteredArticles?.length ?? 0} unrated`
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Library className="h-5 w-5 text-blue-500" />
+            <h2 className="text-lg font-bold text-slate-900">News Library</h2>
+            {articles && (
+              <span className="text-sm text-slate-400">
+                {unratedOnly
+                  ? `${filteredArticles?.length ?? 0} unrated`
                 : `${totalCount} articles`}
               {!unratedOnly && unratedCount > 0 && (
                 <span className="ml-1 text-amber-500">
@@ -197,6 +201,19 @@ export default function NewsLibraryPage() {
               )}
             </span>
           )}
+          </div>
+          <button
+            onClick={() => refreshMutation.mutate()}
+            disabled={refreshMutation.isPending}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+          >
+            {refreshMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {refreshMutation.isPending ? "Fetching..." : "Refresh"}
+          </button>
         </div>
         <p className="mt-1 text-sm text-slate-500">
           Browse and rate articles by topic to train your recommendations.
