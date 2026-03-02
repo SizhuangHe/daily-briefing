@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.article import Article, ArticleRating
 from app.models.preference import TopicWeight, UserPreference
-from app.services import evaluation, recommendation
+from app.services import evaluation, news_service, recommendation
 
 router = APIRouter()
 
@@ -129,6 +129,12 @@ async def get_metrics(
     return evaluation.compute_metrics(db, k=k)
 
 
+@router.get("/dev/centroids")
+async def get_centroids(db: Session = Depends(get_db)):
+    """Get centroid details: topics, liked articles, and top matches per centroid."""
+    return recommendation.get_centroid_details(db)
+
+
 @router.get("/dev/stats")
 async def get_stats(db: Session = Depends(get_db)):
     """Get system statistics."""
@@ -178,3 +184,11 @@ async def get_stats(db: Session = Depends(get_db)):
         "candidate_window_hours": 72,
         "rating_history": rating_history,
     }
+
+
+@router.post("/dev/reclassify")
+async def reclassify_topics(db: Session = Depends(get_db)):
+    """Reclassify all articles using Gemini. Use sparingly."""
+    updated = news_service.reclassify_all_articles(db)
+    total = db.query(Article).count()
+    return {"updated": updated, "total": total}

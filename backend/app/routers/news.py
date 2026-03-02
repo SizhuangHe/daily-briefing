@@ -42,13 +42,23 @@ def _article_to_response(article: Article) -> ArticleResponse:
 @router.get("", response_model=list[ArticleResponse])
 async def get_news(
     topic: str | None = None,
-    limit: int = Query(default=20, le=100),
+    source: str | None = None,
+    sort: str = Query(default="score", pattern="^(score|time)$"),
+    limit: int = Query(default=20, le=500),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    """Get news articles sorted by recommendation score."""
-    articles = news_service.get_articles(db, topic=topic, limit=limit, offset=offset)
+    """Get news articles with optional filtering and sorting."""
+    articles = news_service.get_articles(
+        db, topic=topic, source=source, sort=sort, limit=limit, offset=offset
+    )
     return [_article_to_response(a) for a in articles]
+
+
+@router.get("/sources")
+async def get_sources(db: Session = Depends(get_db)):
+    """Get all distinct news source names."""
+    return news_service.get_sources(db)
 
 
 @router.get("/summary")

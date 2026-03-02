@@ -63,6 +63,29 @@ export interface DevStats {
   rating_history: RatingHistoryEntry[];
 }
 
+export interface CentroidMatch {
+  id: number;
+  title: string;
+  similarity: number;
+}
+
+export interface CentroidLikedArticle {
+  id: number;
+  title: string;
+}
+
+export interface CentroidDetail {
+  id: number;
+  topics: string[];
+  liked_articles: CentroidLikedArticle[];
+  top_matches: CentroidMatch[];
+}
+
+export async function fetchDevCentroids(): Promise<CentroidDetail[]> {
+  const { data } = await apiClient.get<CentroidDetail[]>("/dev/centroids");
+  return data;
+}
+
 export async function fetchDevProfile(): Promise<DevProfile> {
   const { data } = await apiClient.get<DevProfile>("/dev/profile");
   return data;

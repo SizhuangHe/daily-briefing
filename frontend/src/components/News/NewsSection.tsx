@@ -8,7 +8,7 @@ import TopicFilter from "./TopicFilter";
 export default function NewsSection() {
   const [selectedTopic, setSelectedTopic] = useState("all");
   const topic = selectedTopic === "all" ? undefined : selectedTopic;
-  const { data: articles, isLoading } = useNews(topic);
+  const { data: articles, isLoading } = useNews({ topic });
   const refreshMutation = useRefreshNews();
 
   return (

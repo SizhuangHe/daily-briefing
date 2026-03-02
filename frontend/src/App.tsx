@@ -3,6 +3,7 @@ import MainLayout from "./components/Layout/MainLayout";
 import DashboardPage from "./components/Dashboard/DashboardPage";
 import DevPage from "./components/Dev/DevPage";
 import LikedPage from "./components/Liked/LikedPage";
+import NewsLibraryPage from "./components/NewsLibrary/NewsLibraryPage";
 import SettingsPage from "./components/Settings/SettingsPage";
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
     <MainLayout>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/library" element={<NewsLibraryPage />} />
         <Route path="/liked" element={<LikedPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/dev" element={<DevPage />} />

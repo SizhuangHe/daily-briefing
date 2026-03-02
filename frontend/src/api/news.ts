@@ -3,10 +3,17 @@ import type { Article, NewsSummary } from "../types/briefing";
 
 export async function fetchNews(params?: {
   topic?: string;
+  source?: string;
+  sort?: string;
   limit?: number;
   offset?: number;
 }): Promise<Article[]> {
   const { data } = await apiClient.get<Article[]>("/news", { params });
+  return data;
+}
+
+export async function fetchSources(): Promise<string[]> {
+  const { data } = await apiClient.get<string[]>("/news/sources");
   return data;
 }
 

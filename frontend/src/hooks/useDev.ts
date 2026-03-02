@@ -1,10 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  fetchDevCentroids,
   fetchDevMetrics,
   fetchDevProfile,
   fetchDevScores,
   fetchDevStats,
 } from "../api/dev";
+
+export function useDevCentroids() {
+  return useQuery({
+    queryKey: ["dev-centroids"],
+    queryFn: fetchDevCentroids,
+    staleTime: 30 * 1000,
+  });
+}
 
 export function useDevProfile() {
   return useQuery({

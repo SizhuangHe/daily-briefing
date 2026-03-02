@@ -4,18 +4,20 @@ import {
   Database,
   History,
   Loader2,
+  Sparkles,
   Target,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
+  useDevCentroids,
   useDevProfile,
   useDevScores,
   useDevMetrics,
   useDevStats,
 } from "../../hooks/useDev";
-import type { ArticleScoreBreakdown } from "../../api/dev";
+import type { ArticleScoreBreakdown, CentroidDetail } from "../../api/dev";
 
 function ScoreBar({ value, max = 1, color }: { value: number; max?: number; color: string }) {
   const pct = Math.min(100, (value / max) * 100);
@@ -398,6 +400,136 @@ function SystemStatsSection() {
   );
 }
 
+function CentroidCard({ centroid }: { centroid: CentroidDetail }) {
+  const colors = [
+    "border-l-blue-400",
+    "border-l-violet-400",
+    "border-l-amber-400",
+    "border-l-emerald-400",
+  ];
+  const borderColor = colors[centroid.id % colors.length];
+
+  return (
+    <div
+      className={`rounded-lg border border-slate-200 border-l-4 ${borderColor} bg-white p-4 shadow-sm`}
+    >
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-sm font-semibold text-slate-800">
+          Centroid #{centroid.id}
+        </span>
+        <span className="text-xs text-slate-400">
+          {centroid.liked_articles.length} liked article
+          {centroid.liked_articles.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Topics */}
+      {centroid.topics.length > 0 && (
+        <div className="mb-3">
+          <div className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-400">
+            Dominant Topics
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {centroid.topics.map((t) => (
+              <span
+                key={t}
+                className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Liked Articles */}
+      {centroid.liked_articles.length > 0 && (
+        <div className="mb-3">
+          <div className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-400">
+            Liked Articles
+          </div>
+          <div className="space-y-0.5">
+            {centroid.liked_articles.map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center gap-1.5 text-xs text-slate-600"
+              >
+                <ThumbsUp className="h-3 w-3 shrink-0 text-emerald-400" />
+                <span className="truncate">{a.title}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Top Matches */}
+      {centroid.top_matches.length > 0 && (
+        <div>
+          <div className="mb-1 text-xs font-medium uppercase tracking-wider text-slate-400">
+            Top Matches
+          </div>
+          <div className="space-y-0.5">
+            {centroid.top_matches.map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center gap-2 text-xs text-slate-600"
+              >
+                <span className="min-w-0 flex-1 truncate">{m.title}</span>
+                <span className="shrink-0 tabular-nums text-slate-400">
+                  {m.similarity.toFixed(3)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CentroidDetailsSection() {
+  const { data: centroids, isLoading } = useDevCentroids();
+
+  if (isLoading) {
+    return <SectionLoading />;
+  }
+
+  if (!centroids?.length) {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-violet-500" />
+          <h3 className="text-sm font-semibold text-slate-800">
+            Interest Centroids
+          </h3>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          No centroids yet — like some articles to build your interest profile.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-violet-500" />
+        <h3 className="text-sm font-semibold text-slate-800">
+          Interest Centroids
+        </h3>
+        <span className="text-xs text-slate-400">
+          {centroids.length} cluster{centroids.length !== 1 ? "s" : ""} detected
+        </span>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {centroids.map((c) => (
+          <CentroidCard key={c.id} centroid={c} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SectionLoading() {
   return (
     <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-8 shadow-sm">
@@ -426,6 +558,7 @@ export default function DevPage() {
           <UserProfileSection />
           <EvalMetricsSection />
         </div>
+        <CentroidDetailsSection />
         <ScoreBreakdownSection />
         <div className="grid gap-4 lg:grid-cols-2">
           <RatingHistorySection />

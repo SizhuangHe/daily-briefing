@@ -42,6 +42,72 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     return [emb.values for emb in result.embeddings]
 
 
+VALID_TOPICS = [
+    "ai", "tech", "finance", "science", "world", "health",
+    "business", "energy", "sports", "entertainment",
+    "disaster", "public_safety", "weather", "infrastructure",
+    "war_conflict", "policy", "financial_shock", "market",
+    "crime", "diplomacy", "education", "space", "automotive", "crypto",
+    "environment",
+]
+
+
+def classify_topics(articles: list[dict]) -> dict[int, list[str]]:
+    """Classify articles into topics using Gemini.
+
+    Used as fallback when keyword matching results in 'general'.
+
+    Args:
+        articles: List of dicts with keys: id, title, description
+
+    Returns:
+        Dict mapping article ID to list of topic strings.
+    """
+    client = _get_client()
+    if not client or not articles:
+        return {}
+
+    article_texts = []
+    for a in articles:
+        article_texts.append(
+            f"ID: {a['id']}\n"
+            f"Title: {a['title']}\n"
+            f"Description: {(a.get('description') or '')[:300]}"
+        )
+
+    topics_str = ", ".join(VALID_TOPICS)
+    prompt = (
+        "You are a news classifier. For each article below, assign 1-3 topic labels.\n\n"
+        f"Valid topics: {topics_str}\n\n"
+        "Rules:\n"
+        "- Pick the most specific applicable topics\n"
+        "- Use 1-3 topics per article\n"
+        "- Only use topics from the valid list above\n\n"
+        "Articles:\n"
+        + "\n---\n".join(article_texts)
+        + '\n\nReturn JSON: {"articles": {"<id>": ["topic1", "topic2"]}}'
+    )
+
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_fallback_model,
+            contents=prompt,
+            config={"response_mime_type": "application/json"},
+        )
+        result = json.loads(response.text)
+        articles_data = result.get("articles", result)
+        # Validate topics
+        classified = {}
+        for k, v in articles_data.items():
+            valid = [t for t in v if t in VALID_TOPICS]
+            if valid:
+                classified[int(k)] = valid
+        return classified
+    except Exception as e:
+        logger.error(f"Gemini topic classification failed: {e}")
+        return {}
+
+
 def summarize_articles(articles: list[dict]) -> dict[int, str]:
     """Generate concise summaries for a batch of articles.
 

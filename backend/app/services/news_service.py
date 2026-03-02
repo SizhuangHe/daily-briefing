@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.models.article import Article
 from app.models.preference import NewsSource
+from app.services import gemini_service
 from app.utils.text_processing import clean_html
 from app.utils.url_normalize import normalize_url
 
@@ -28,23 +29,63 @@ TOPIC_KEYWORDS = {
     "ai": [
         "artificial intelligence", "machine learning", "deep learning", "llm",
         "gpt", "neural network", "ai model", "generative ai", "chatbot",
-        "transformer", "diffusion", "openai", "anthropic", "gemini",
+        "transformer", "diffusion", "openai", "anthropic", "gemini ai",
+        "claude", "copilot", "midjourney", "stable diffusion", "ai safety",
+        "large language model", "foundation model",
     ],
     "tech": [
         "software", "startup", "silicon valley", "programming", "developer",
         "cloud", "saas", "api", "open source", "github", "app",
+        "apple", "google", "microsoft", "amazon", "meta", "nvidia",
+        "semiconductor", "chip", "smartphone", "iphone", "android",
+        "cybersecurity", "hack", "data breach", "privacy",
+        "social media", "tiktok", "instagram", "twitter",
     ],
     "finance": [
         "stock", "market", "investment", "banking", "crypto", "bitcoin",
         "ethereum", "fed", "inflation", "earnings", "ipo", "trading",
+        "wall street", "hedge fund", "venture capital", "interest rate",
+        "recession", "gdp", "treasury", "bond", "dow", "nasdaq", "s&p",
+        "dividend", "forex", "commodity",
     ],
     "science": [
         "research", "study", "discovery", "physics", "biology", "chemistry",
         "space", "nasa", "climate", "quantum", "genome", "vaccine",
+        "astronomy", "mars", "satellite", "telescope", "evolution",
+        "neuroscience", "particle", "laboratory", "experiment",
     ],
     "world": [
         "politics", "election", "government", "war", "diplomacy", "united nations",
         "policy", "regulation", "congress", "senate", "president",
+        "geopolitics", "sanctions", "trade war", "nato", "eu ", "china",
+        "russia", "ukraine", "middle east", "immigration", "refugee",
+        "summit", "treaty", "alliance",
+    ],
+    "health": [
+        "health", "medical", "hospital", "doctor", "patient", "disease",
+        "drug", "pharmaceutical", "fda", "clinical trial", "surgery",
+        "mental health", "cancer", "diabetes", "pandemic", "covid",
+        "wellness", "nutrition", "fitness", "obesity",
+    ],
+    "business": [
+        "ceo", "merger", "acquisition", "revenue", "profit", "corporate",
+        "layoff", "hiring", "retail", "supply chain", "e-commerce",
+        "franchise", "bankruptcy", "valuation", "quarterly",
+    ],
+    "energy": [
+        "oil", "gas", "solar", "wind", "renewable", "energy",
+        "nuclear", "battery", "ev ", "electric vehicle", "tesla",
+        "opec", "pipeline", "grid", "power plant", "carbon",
+    ],
+    "sports": [
+        "nba", "nfl", "mlb", "soccer", "football", "basketball",
+        "tennis", "golf", "olympic", "championship", "playoff",
+        "tournament", "athlete", "coach", "stadium", "league",
+    ],
+    "entertainment": [
+        "movie", "film", "tv show", "netflix", "disney", "streaming",
+        "album", "concert", "celebrity", "grammy", "oscar", "emmy",
+        "box office", "hollywood", "music", "series", "game",
     ],
 }
 
@@ -243,22 +284,100 @@ def fetch_all_sources(db: Session) -> int:
             db.rollback()
 
     logger.info(f"Fetched {total_new} new articles from {len(sources)} sources")
+
+    # Gemini fallback: reclassify articles still tagged "general"
+    if total_new > 0:
+        _reclassify_general_articles(db)
+
     return total_new
+
+
+def _reclassify_general_articles(db: Session) -> int:
+    """Use Gemini to reclassify articles that only have the 'general' topic."""
+    general_articles = (
+        db.query(Article)
+        .filter(Article.topics == '["general"]')
+        .limit(50)
+        .all()
+    )
+    if not general_articles:
+        return 0
+
+    return _gemini_classify_batch(db, general_articles)
+
+
+def reclassify_all_articles(db: Session) -> int:
+    """Use Gemini to reclassify ALL articles. Processes in batches of 30."""
+    articles = db.query(Article).order_by(Article.published_at.desc()).all()
+    if not articles:
+        return 0
+
+    total_updated = 0
+    for i in range(0, len(articles), 30):
+        batch = articles[i : i + 30]
+        total_updated += _gemini_classify_batch(db, batch)
+
+    logger.info(f"Reclassified {total_updated}/{len(articles)} articles via Gemini")
+    return total_updated
+
+
+def _gemini_classify_batch(db: Session, articles: list[Article]) -> int:
+    """Classify a batch of articles using Gemini and update DB."""
+    batch = [
+        {"id": a.id, "title": a.title, "description": a.description}
+        for a in articles
+    ]
+
+    try:
+        classified = gemini_service.classify_topics(batch)
+    except Exception as e:
+        logger.error(f"Gemini topic classification failed: {e}")
+        return 0
+
+    updated = 0
+    for a in articles:
+        if a.id in classified:
+            a.topics = json.dumps(classified[a.id])
+            updated += 1
+
+    if updated:
+        db.commit()
+
+    return updated
 
 
 def get_articles(
     db: Session,
     topic: str | None = None,
+    source: str | None = None,
+    sort: str = "score",
     limit: int = 20,
     offset: int = 0,
 ) -> list[Article]:
-    """Get articles sorted by recommendation score, optionally filtered by topic."""
-    query = db.query(Article).order_by(
-        Article.recommendation_score.desc(),
-        Article.published_at.desc(),
-    )
+    """Get articles with optional filtering and sorting.
+
+    sort: "score" (recommendation_score desc) or "time" (published_at desc).
+    """
+    query = db.query(Article)
+
+    if sort == "time":
+        query = query.order_by(Article.published_at.desc())
+    else:
+        query = query.order_by(
+            Article.recommendation_score.desc(),
+            Article.published_at.desc(),
+        )
 
     if topic:
         query = query.filter(Article.topics.contains(f'"{topic}"'))
 
+    if source:
+        query = query.filter(Article.source_name == source)
+
     return query.offset(offset).limit(limit).all()
+
+
+def get_sources(db: Session) -> list[str]:
+    """Get all distinct source names."""
+    rows = db.query(Article.source_name).distinct().all()
+    return sorted([r[0] for r in rows if r[0]])

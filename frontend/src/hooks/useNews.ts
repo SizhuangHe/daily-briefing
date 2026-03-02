@@ -1,10 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchDislikedArticles, fetchLikedArticles, fetchNews, fetchNewsSummary, fetchRatings, rateArticle, refreshNews } from "../api/news";
+import { fetchDislikedArticles, fetchLikedArticles, fetchNews, fetchNewsSummary, fetchRatings, fetchSources, rateArticle, refreshNews } from "../api/news";
 
-export function useNews(topic?: string) {
+export function useNews(params?: {
+  topic?: string;
+  source?: string;
+  sort?: string;
+  limit?: number;
+}) {
+  const { topic, source, sort, limit = 20 } = params ?? {};
   return useQuery({
-    queryKey: ["news", topic],
-    queryFn: () => fetchNews({ topic, limit: 20 }),
+    queryKey: ["news", topic, source, sort, limit],
+    queryFn: () => fetchNews({ topic, source, sort, limit }),
+  });
+}
+
+export function useNewsSources() {
+  return useQuery({
+    queryKey: ["news-sources"],
+    queryFn: fetchSources,
   });
 }
 
@@ -42,7 +55,27 @@ export function useRateArticle() {
   return useMutation({
     mutationFn: ({ articleId, score }: { articleId: number; score: number }) =>
       rateArticle(articleId, score),
-    onSuccess: () => {
+    onMutate: async ({ articleId, score }) => {
+      // Optimistic update: immediately reflect the new rating in the cache
+      await queryClient.cancelQueries({ queryKey: ["ratings"] });
+      const prev = queryClient.getQueryData<Record<number, number>>(["ratings"]);
+      queryClient.setQueryData<Record<number, number>>(["ratings"], (old) => {
+        const next = { ...old };
+        if (score === 0) {
+          delete next[articleId];
+        } else {
+          next[articleId] = score;
+        }
+        return next;
+      });
+      return { prev };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(["ratings"], context.prev);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["news"] });
       queryClient.invalidateQueries({ queryKey: ["ratings"] });
       queryClient.invalidateQueries({ queryKey: ["liked"] });

@@ -594,6 +594,117 @@ def _embedding_similarity(
     return scores
 
 
+def get_centroid_details(
+    db: Session,
+) -> list[dict]:
+    """Compute centroids and return details about each one.
+
+    For each centroid, finds the closest liked articles and top-matching
+    candidate articles, and summarizes the dominant topics.
+
+    Returns list of dicts: {topics, liked_articles, top_articles}.
+    """
+    ratings = db.query(ArticleRating).all()
+    rating_map = {r.article_id: r.score for r in ratings}
+    rating_dates = {r.article_id: r.rated_at for r in ratings}
+
+    liked_ids = [aid for aid, s in rating_map.items() if s > 0]
+    if not liked_ids:
+        return []
+
+    # Load all articles with embeddings
+    articles = db.query(Article).all()
+    embeddings: dict[int, list[float]] = {}
+    for a in articles:
+        if a.embedding:
+            try:
+                emb = json.loads(a.embedding)
+                if isinstance(emb, list) and len(emb) > 0:
+                    embeddings[a.id] = emb
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    liked_with_emb = [aid for aid in liked_ids if aid in embeddings]
+    if not liked_with_emb:
+        return []
+
+    now = datetime.utcnow()
+    dim = len(next(iter(embeddings.values())))
+
+    # Build weighted liked embeddings and run k-means
+    liked_data: list[tuple[int, list[float], float]] = []  # (id, emb, weight)
+    weighted_liked: list[tuple[list[float], float]] = []
+    for aid in liked_with_emb:
+        weight = 1.0
+        if rating_dates.get(aid):
+            age_days = (now - rating_dates[aid]).total_seconds() / 86400
+            weight = 0.5 ** (age_days / 7.0)
+        liked_data.append((aid, embeddings[aid], weight))
+        weighted_liked.append((embeddings[aid], weight))
+
+    K = min(len(weighted_liked), 4)
+    centroids = _weighted_kmeans(weighted_liked, K, dim)
+    if not centroids:
+        return []
+
+    article_map = {a.id: a for a in articles}
+
+    # Assign each liked article to its nearest centroid
+    centroid_liked: list[list[int]] = [[] for _ in range(len(centroids))]
+    for aid, emb, _ in liked_data:
+        best = 0
+        best_sim = -1.0
+        for c_idx, cent in enumerate(centroids):
+            sim = _cosine_similarity(emb, cent, dim)
+            if sim > best_sim:
+                best_sim = sim
+                best = c_idx
+        centroid_liked[best].append(aid)
+
+    # For each centroid, find top 5 closest articles from all articles
+    results = []
+    for c_idx, cent in enumerate(centroids):
+        # Score all articles against this centroid
+        scored = []
+        for a in articles:
+            if a.id not in embeddings:
+                continue
+            sim = _cosine_similarity(embeddings[a.id], cent, dim)
+            scored.append((a.id, sim))
+        scored.sort(key=lambda x: -x[1])
+        top_articles = scored[:5]
+
+        # Collect topics from liked articles in this centroid
+        topic_counts: dict[str, int] = {}
+        for aid in centroid_liked[c_idx]:
+            a = article_map.get(aid)
+            if a:
+                for t in _get_topics(a):
+                    topic_counts[t] = topic_counts.get(t, 0) + 1
+        top_topics = sorted(topic_counts.items(), key=lambda x: -x[1])
+
+        results.append({
+            "id": c_idx,
+            "topics": [t for t, _ in top_topics[:5]],
+            "liked_articles": [
+                {"id": aid, "title": article_map[aid].title}
+                for aid in centroid_liked[c_idx]
+                if aid in article_map
+            ],
+            "top_matches": [
+                {
+                    "id": aid,
+                    "title": article_map[aid].title,
+                    "similarity": round(sim, 3),
+                }
+                for aid, sim in top_articles
+                if aid in article_map
+            ],
+        })
+
+    return results
+
+
 def _compute_tfidf_scores(
     articles: list[Article],
     rating_map: dict[int, int],

@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     # Gemini API
     gemini_api_key: str = ""
     gemini_primary_model: str = "gemini-2.5-flash"
-    gemini_fallback_model: str = "gemini-2.0-flash-lite"
+    gemini_fallback_model: str = "gemini-2.5-flash-lite"
 
     # Database
     database_url: str = "sqlite:///data/daily_briefing.db"
