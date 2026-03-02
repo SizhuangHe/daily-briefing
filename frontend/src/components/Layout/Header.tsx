@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Newspaper, Settings } from "lucide-react";
+import { Code2, Heart, Newspaper, Settings } from "lucide-react";
 import { clsx } from "clsx";
 
 export default function Header() {
@@ -25,6 +25,18 @@ export default function Header() {
             Dashboard
           </Link>
           <Link
+            to="/liked"
+            className={clsx(
+              "flex items-center gap-1 text-sm font-medium no-underline",
+              location.pathname === "/liked"
+                ? "text-blue-600"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+          >
+            <Heart className="h-4 w-4" />
+            Liked
+          </Link>
+          <Link
             to="/settings"
             className={clsx(
               "flex items-center gap-1 text-sm font-medium no-underline",
@@ -35,6 +47,18 @@ export default function Header() {
           >
             <Settings className="h-4 w-4" />
             Settings
+          </Link>
+          <Link
+            to="/dev"
+            className={clsx(
+              "flex items-center gap-1 text-sm font-medium no-underline",
+              location.pathname === "/dev"
+                ? "text-blue-600"
+                : "text-slate-500 hover:text-slate-900"
+            )}
+          >
+            <Code2 className="h-4 w-4" />
+            Dev
           </Link>
         </nav>
       </div>

@@ -77,6 +77,40 @@ async def get_news_summary(db: Session = Depends(get_db)):
     return result
 
 
+@router.get("/ratings")
+async def get_ratings(db: Session = Depends(get_db)):
+    """Get all article ratings as a map of article_id -> score."""
+    ratings = db.query(ArticleRating).all()
+    return {r.article_id: r.score for r in ratings}
+
+
+@router.get("/liked", response_model=list[ArticleResponse])
+async def get_liked_articles(db: Session = Depends(get_db)):
+    """Get all articles the user has liked (score=1), newest first."""
+    liked = (
+        db.query(Article)
+        .join(ArticleRating, ArticleRating.article_id == Article.id)
+        .filter(ArticleRating.score == 1)
+        .order_by(ArticleRating.rated_at.desc())
+        .all()
+    )
+    return [_article_to_response(a) for a in liked]
+
+
+@router.get("/disliked", response_model=list[ArticleResponse])
+async def get_disliked_articles(db: Session = Depends(get_db)):
+    """Get all articles the user has disliked (score=-1), newest first."""
+    disliked = (
+        db.query(Article)
+        .join(ArticleRating, ArticleRating.article_id == Article.id)
+        .filter(ArticleRating.score == -1)
+        .order_by(ArticleRating.rated_at.desc())
+        .all()
+    )
+    return [_article_to_response(a) for a in disliked]
+
+
+
 @router.get("/{article_id}", response_model=ArticleResponse)
 async def get_article(article_id: int, db: Session = Depends(get_db)):
     """Get a single article by ID."""
@@ -92,22 +126,36 @@ async def rate_article(
     rating: ArticleRatingRequest,
     db: Session = Depends(get_db),
 ):
-    """Rate an article (thumbs up: 1, thumbs down: -1)."""
+    """Rate an article (1=up, -1=down, 0=remove)."""
     article = db.query(Article).filter_by(id=article_id).first()
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
 
-    if rating.score not in (-1, 1):
-        raise HTTPException(status_code=400, detail="Score must be -1 or 1")
+    if rating.score not in (-1, 0, 1):
+        raise HTTPException(status_code=400, detail="Score must be -1, 0, or 1")
 
     existing = db.query(ArticleRating).filter_by(article_id=article_id).first()
+    if rating.score == 0:
+        if existing:
+            db.delete(existing)
+        db.commit()
+        recommendation.update_topic_weights(db)
+        recommendation.recalculate_scores(db)
+        return ArticleRatingResponse(
+            article_id=article_id,
+            score=0,
+            rated_at=datetime.utcnow(),
+        )
+
     if existing:
         existing.score = rating.score
+        existing.rating_source = "article"
         existing.rated_at = datetime.utcnow()
     else:
         db.add(ArticleRating(
             article_id=article_id,
             score=rating.score,
+            rating_source="article",
         ))
     db.commit()
 

@@ -48,6 +48,7 @@ class BriefingStory(BaseModel):
     importance_score: float = 0.0
     interest_score: float = 0.0
     sources: list[StorySource] = []
+    section_type: str = "for_you"  # "for_you" or "explore"
 
 
 class BriefingSection(BaseModel):

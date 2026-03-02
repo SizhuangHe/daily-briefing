@@ -25,6 +25,23 @@ def _get_client() -> genai.Client | None:
     return _client
 
 
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Generate embeddings for a list of texts using Gemini text-embedding-004.
+
+    Returns a list of embedding vectors (one per input text).
+    Raises on failure (caller should handle).
+    """
+    client = _get_client()
+    if not client:
+        raise RuntimeError("Gemini client not available")
+
+    result = client.models.embed_content(
+        model="text-embedding-004",
+        contents=texts,
+    )
+    return [emb.values for emb in result.embeddings]
+
+
 def summarize_articles(articles: list[dict]) -> dict[int, str]:
     """Generate concise summaries for a batch of articles.
 

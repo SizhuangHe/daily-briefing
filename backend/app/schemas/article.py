@@ -22,6 +22,7 @@ class ArticleRatingRequest(BaseModel):
     score: int  # -1 or 1
 
 
+
 class ArticleRatingResponse(BaseModel):
     article_id: int
     score: int

@@ -10,11 +10,27 @@ export async function fetchNews(params?: {
   return data;
 }
 
+export async function fetchRatings(): Promise<Record<number, number>> {
+  const { data } = await apiClient.get<Record<number, number>>("/news/ratings");
+  return data;
+}
+
 export async function rateArticle(
   articleId: number,
   score: number
 ): Promise<void> {
   await apiClient.post(`/news/${articleId}/rate`, { score });
+}
+
+
+export async function fetchLikedArticles(): Promise<Article[]> {
+  const { data } = await apiClient.get<Article[]>("/news/liked");
+  return data;
+}
+
+export async function fetchDislikedArticles(): Promise<Article[]> {
+  const { data } = await apiClient.get<Article[]>("/news/disliked");
+  return data;
 }
 
 export async function fetchNewsSummary(): Promise<NewsSummary> {

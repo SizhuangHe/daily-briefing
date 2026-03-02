@@ -8,6 +8,7 @@ import {
   useToggleSource,
 } from "../../hooks/usePreferences";
 import WatchlistTable from "../Stocks/WatchlistTable";
+import TopicSelector from "./TopicSelector";
 
 function SourceManager() {
   const { data: sources, isLoading } = useSources();
@@ -147,6 +148,14 @@ export default function SettingsPage() {
             Stock Watchlist
           </h3>
           <WatchlistTable items={watchlist || []} />
+        </div>
+
+        {/* Interested Topics */}
+        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">
+            Interested Topics
+          </h3>
+          <TopicSelector />
         </div>
 
         {/* News Sources */}

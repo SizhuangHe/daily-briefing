@@ -46,6 +46,9 @@ class Article(Base):
     personal_impact_flags = Column(Text)  # JSON: ["travel","health","safety","finance"]
     confirmed_sources = Column(Integer, default=1)
 
+    # Cached embedding from Gemini text-embedding-004
+    embedding = Column(Text)  # JSON-encoded list[float]
+
     published_at = Column(DateTime)
     fetched_at = Column(DateTime, default=datetime.utcnow)
 
@@ -58,6 +61,7 @@ class ArticleRating(Base):
         Integer, ForeignKey("articles.id", ondelete="CASCADE"), nullable=False
     )
     score = Column(Integer, nullable=False)  # -1 = thumbs down, 1 = thumbs up
+    rating_source = Column(Text, default="article")  # "article" or "story"
     rated_at = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (UniqueConstraint("article_id", name="uq_article_rating"),)

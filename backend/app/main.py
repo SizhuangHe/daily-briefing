@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import SessionLocal, init_db
-from app.routers import briefing, calendar, inspiration, news, preferences, stocks
+from app.routers import briefing, calendar, dev, inspiration, news, preferences, stocks
 from app.services.news_service import seed_default_sources
 
 
@@ -49,6 +49,7 @@ app.include_router(
 app.include_router(
     preferences.router, prefix="/api/v1/preferences", tags=["preferences"]
 )
+app.include_router(dev.router, prefix="/api/v1", tags=["dev"])
 
 
 @app.get("/health")

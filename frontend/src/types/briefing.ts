@@ -51,6 +51,7 @@ export interface BriefingStory {
   importance_score: number;
   interest_score: number;
   sources: StorySource[];
+  section_type: string;
 }
 
 export interface BriefingSection {

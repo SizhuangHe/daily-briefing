@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.article import Article
 from app.models.preference import NewsSource, TopicWeight, UserPreference
 from app.schemas.preference import (
     NewsSourceAddRequest,
@@ -69,6 +70,31 @@ async def update_preferences(
         topics=_get_pref(db, "topics", []),
         rating_mode=_get_pref(db, "rating_mode", "thumbs"),
     )
+
+
+@router.get("/topics")
+async def get_available_topics(db: Session = Depends(get_db)):
+    """Get all unique topics found across articles and event types."""
+    articles = db.query(Article.topics).filter(Article.topics.isnot(None)).all()
+    all_topics: set[str] = set()
+    for (raw_topics,) in articles:
+        try:
+            parsed = json.loads(raw_topics)
+            if isinstance(parsed, list):
+                all_topics.update(parsed)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    event_types = (
+        db.query(Article.event_type)
+        .filter(Article.event_type.isnot(None))
+        .distinct()
+        .all()
+    )
+    for (et,) in event_types:
+        all_topics.add(et)
+
+    return sorted(all_topics - {"general"})
 
 
 # --- News Sources CRUD ---

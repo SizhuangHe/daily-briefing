@@ -6,6 +6,7 @@ Urgent / Affects You / Your Interests tiers.
 """
 
 import logging
+import random
 
 from sqlalchemy.orm import Session
 
@@ -131,14 +132,39 @@ def build_briefing(db: Session) -> dict:
             affects_stories.append(s)
             used_story_indices.add(i)
 
-    interest_stories = []
+    # 6c. Split remaining into "for_you" (top 70%) + "explore" (bottom 30%)
+    # Explore stories prefer topics not already covered by for_you (coverage gap)
     remaining = [
         (i, s) for i, s in enumerate(enriched_stories)
         if i not in used_story_indices
     ]
     remaining.sort(key=lambda x: x[1].interest_score, reverse=True)
-    for i, s in remaining[:MAX_INTERESTS]:
-        interest_stories.append(s)
+    capped = remaining[:MAX_INTERESTS]
+
+    for_you_count = max(1, int(len(capped) * 0.7))
+
+    # Tag for_you stories and collect their event types
+    for_you_stories: list[BriefingStory] = []
+    for_you_types: set[str] = set()
+    for idx, (i, s) in enumerate(capped[:for_you_count]):
+        s.section_type = "for_you"
+        for_you_stories.append(s)
+        if s.event_type:
+            for_you_types.add(s.event_type)
+
+    # For explore: prefer stories whose event_type is NOT in for_you (coverage gap)
+    explore_candidates = [(i, s) for i, s in capped[for_you_count:]]
+    gap_stories = [(i, s) for i, s in explore_candidates if s.event_type not in for_you_types]
+    other_stories = [(i, s) for i, s in explore_candidates if s.event_type in for_you_types]
+    # Coverage-gap stories first, then the rest
+    ordered_explore = gap_stories + other_stories
+    explore_stories: list[BriefingStory] = []
+    for i, s in ordered_explore:
+        s.section_type = "explore"
+        explore_stories.append(s)
+
+    random.shuffle(explore_stories)
+    interest_stories = for_you_stories + explore_stories
 
     return {
         "urgent": BriefingSection(
