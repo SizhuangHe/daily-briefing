@@ -6,10 +6,9 @@ Fetches US major indices and watchlist stock prices via yfinance.
 
 import logging
 from datetime import datetime, timezone
+from dataclasses import dataclass
 
 import yfinance as yf
-
-from app.schemas.stock import IndexResponse, WatchlistItemResponse
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +20,26 @@ INDICES = [
 ]
 
 
-def get_indices() -> list[IndexResponse]:
-    """Fetch current data for major US stock indices."""
+@dataclass
+class IndexData:
+    name: str
+    symbol: str
+    price: float = 0.0
+    change: float = 0.0
+    change_percent: float = 0.0
+
+
+@dataclass
+class WatchlistData:
+    symbol: str
+    name: str | None = None
+    price: float = 0.0
+    change: float = 0.0
+    change_percent: float = 0.0
+
+
+def get_indices() -> list[IndexData]:
+    """Fetch current data for major stock indices."""
     results = []
     symbols = [idx["symbol"] for idx in INDICES]
     name_map = {idx["symbol"]: idx["name"] for idx in INDICES}
@@ -40,7 +57,7 @@ def get_indices() -> list[IndexResponse]:
             change_pct = (change / prev_close * 100) if prev_close else 0.0
 
             results.append(
-                IndexResponse(
+                IndexData(
                     name=name_map[symbol],
                     symbol=symbol,
                     price=round(price, 2),
@@ -54,7 +71,7 @@ def get_indices() -> list[IndexResponse]:
     return results
 
 
-def get_watchlist_prices(symbols: list[str]) -> list[WatchlistItemResponse]:
+def get_watchlist_prices(symbols: list[str]) -> list[WatchlistData]:
     """Fetch current prices for a list of stock symbols."""
     if not symbols:
         return []
@@ -65,7 +82,7 @@ def get_watchlist_prices(symbols: list[str]) -> list[WatchlistItemResponse]:
         for symbol in symbols:
             ticker = tickers.tickers.get(symbol)
             if ticker is None:
-                results.append(WatchlistItemResponse(symbol=symbol))
+                results.append(WatchlistData(symbol=symbol))
                 continue
 
             info = ticker.fast_info
@@ -82,7 +99,7 @@ def get_watchlist_prices(symbols: list[str]) -> list[WatchlistItemResponse]:
                 pass
 
             results.append(
-                WatchlistItemResponse(
+                WatchlistData(
                     symbol=symbol,
                     name=name,
                     price=round(price, 2),
@@ -99,9 +116,7 @@ def get_watchlist_prices(symbols: list[str]) -> list[WatchlistItemResponse]:
 def is_market_hours() -> bool:
     """Check if US stock market is currently open (rough check)."""
     now = datetime.now(timezone.utc)
-    # NYSE: Mon-Fri, 9:30 AM - 4:00 PM ET (UTC-5 or UTC-4 DST)
-    # Rough check: weekday and between 13:30-21:00 UTC
-    if now.weekday() >= 5:  # Saturday or Sunday
+    if now.weekday() >= 5:
         return False
     hour_utc = now.hour
     return 13 <= hour_utc <= 21

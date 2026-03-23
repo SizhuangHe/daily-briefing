@@ -10,7 +10,7 @@ db_path = settings.database_url.replace("sqlite:///", "")
 Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(
-    f"sqlite:///{db_path}",
+    settings.database_url,
     connect_args={"check_same_thread": False},
     echo=False,
 )
@@ -22,15 +22,6 @@ class Base(DeclarativeBase):
     pass
 
 
-def get_db():
-    """FastAPI dependency that provides a database session."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 def init_db():
-    """Create all tables. Called on application startup."""
+    """Create all tables."""
     Base.metadata.create_all(bind=engine)

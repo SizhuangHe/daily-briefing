@@ -324,6 +324,8 @@ def _topic_score(article: Article, topic_prefs: dict[str, float]) -> float:
         return 0.5
 
     scores = [topic_prefs.get(t, 1.0) for t in topics]
+    if not scores:
+        return 0.5
     # Normalize to [0, 1] (weights are in [0.2, 2.0])
     avg = sum(scores) / len(scores)
     return min(1.0, avg / 2.0)

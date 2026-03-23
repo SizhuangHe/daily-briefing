@@ -90,6 +90,29 @@ TOPIC_KEYWORDS = {
     ],
 }
 
+# Source → default topics when keyword matching finds nothing
+SOURCE_DEFAULT_TOPICS: dict[str, list[str]] = {
+    "Bloomberg": ["finance", "business"],
+    "CNBC": ["finance", "business"],
+    "The Economist": ["world", "finance"],
+    "SEC": ["finance"],
+    "Fed Reserve": ["finance"],
+    "Nature": ["science"],
+    "Wired": ["tech"],
+    "Ars Technica": ["tech"],
+    "MIT Technology Review": ["tech", "ai"],
+    "BBC News": ["world"],
+    "BBC World": ["world"],
+    "Reuters": ["world"],
+    "The New York Times": ["world"],
+    "CNN": ["world"],
+    "NPR US": ["world"],
+    "NPR World": ["world"],
+    "Guardian US Politics": ["world", "policy"],
+    "Politico": ["world", "policy"],
+    "Yahoo News": ["world"],
+}
+
 SEED_DATA_PATH = Path(__file__).parent.parent.parent / "data" / "seed_data"
 
 # Cross-source dedup: similarity threshold for titles
@@ -154,13 +177,24 @@ def _generate_external_id(url: str, guid: str | None, title: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
 
-def _extract_topics(title: str, description: str) -> list[str]:
-    """Extract topics from article text using keyword matching."""
+def _extract_topics(title: str, description: str, source_name: str = "") -> list[str]:
+    """Extract topics from article text using keyword matching.
+
+    Falls back to source default topics if no keywords match.
+    Uses word-boundary matching to avoid substring false positives
+    (e.g. "nfl" matching inside "inflation").
+    """
     text = f"{title} {description}".lower()
     matched = []
     for topic, keywords in TOPIC_KEYWORDS.items():
-        if any(kw in text for kw in keywords):
-            matched.append(topic)
+        for kw in keywords:
+            # Word-boundary match: keyword must not be surrounded by letters
+            pattern = r'(?<![a-z])' + re.escape(kw) + r'(?![a-z])'
+            if re.search(pattern, text):
+                matched.append(topic)
+                break
+    if not matched and source_name:
+        matched = list(SOURCE_DEFAULT_TOPICS.get(source_name, []))
     return matched
 
 
@@ -218,7 +252,7 @@ def fetch_rss_feed(source: NewsSource) -> list[dict]:
             "source_name": source.name,
             "source_url": source.url,
             "image_url": image,
-            "topics": _extract_topics(title, description or ""),
+            "topics": _extract_topics(title, description or "", source.name),
             "published_at": pub_dt,
         })
 
@@ -286,9 +320,8 @@ def fetch_all_sources(db: Session) -> int:
 
     logger.info(f"Fetched {total_new} new articles from {len(sources)} sources")
 
-    # Gemini fallback: reclassify articles with no topics
+    # Gemini: classify regions for new articles
     if total_new > 0:
-        _reclassify_untagged_articles(db)
         _classify_untagged_regions(db)
 
     # Prune articles older than 10 days

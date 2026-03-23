@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+# Absolute path to the database
+_DB_PATH = Path(__file__).parent.parent / "data" / "daily_briefing.db"
 
 
 class Settings(BaseSettings):
@@ -7,18 +12,8 @@ class Settings(BaseSettings):
     gemini_primary_model: str = "gemini-2.5-flash"
     gemini_fallback_model: str = "gemini-2.5-flash-lite"
 
-    # Database
-    database_url: str = "sqlite:///data/daily_briefing.db"
-
-    # Server
-    api_host: str = "0.0.0.0"
-    api_port: int = 8000
-
-    # Calendar provider: "google" or "apple"
-    calendar_provider: str = "google"
-
-    # CORS
-    frontend_url: str = "http://localhost:5173"
+    # Database (absolute path)
+    database_url: str = f"sqlite:///{_DB_PATH}"
 
     model_config = {
         "env_file": ("../.env", ".env"),
